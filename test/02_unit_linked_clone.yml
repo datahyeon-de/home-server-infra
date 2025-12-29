@@ -1,6 +1,6 @@
 - hosts: localhost
   connection: local
-  vars_files: ["../inventory/group_vars/all.yml", "test_vars.yml"]
+  vars_files: ["../group_vars/all.yml", "test_vars.yml"]
   tasks:
     - name: "TEST | 2-1 | Execute Fast Linked Clone"
       ansible.builtin.uri:
