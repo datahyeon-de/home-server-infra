@@ -34,7 +34,7 @@ vm_configs:
     template_id: 901
     type: "ubuntu"
     role: "standalone"
-    existing: false
+    existing: true
 
   - vmid: 105
     name: "postgres-dw"
@@ -43,7 +43,7 @@ vm_configs:
     template_id: 901
     type: "ubuntu"
     role: "standalone"
-    existing: false
+    existing: true
 
   - vmid: 106
     name: "infra-prom-01"
@@ -52,7 +52,7 @@ vm_configs:
     template_id: 901
     type: "ubuntu"
     role: "standalone"
-    existing: false
+    existing: true
 
   # --- New Kubernetes Nodes (Template 902) ---
   - vmid: 300
@@ -62,7 +62,7 @@ vm_configs:
     template_id: 902
     type: "k8s"
     role: "master"
-    existing: false
+    existing: true
 
   - vmid: 301
     name: "k8s-worker-01"
@@ -71,7 +71,7 @@ vm_configs:
     template_id: 902
     type: "k8s"
     role: "worker"
-    existing: false
+    existing: true
 
   - vmid: 302
     name: "k8s-worker-02"
@@ -80,7 +80,7 @@ vm_configs:
     template_id: 902
     type: "k8s"
     role: "worker"
-    existing: false
+    existing: true
 
   - vmid: 303
     name: "k8s-worker-03"
@@ -89,7 +89,7 @@ vm_configs:
     template_id: 902
     type: "k8s"
     role: "worker"
-    existing: false
+    existing: true
 
   - vmid: 304
     name: "data-gen-worker"
@@ -98,7 +98,7 @@ vm_configs:
     template_id: 902
     type: "k8s"
     role: "worker"
-    existing: false
+    existing: true
 
   - vmid: 305
     name: "k8s-monitor-01"
@@ -107,4 +107,4 @@ vm_configs:
     template_id: 902
     type: "k8s"
     role: "worker"
-    existing: false
+    existing: true
