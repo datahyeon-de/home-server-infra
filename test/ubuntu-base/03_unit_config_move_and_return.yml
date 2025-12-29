@@ -1,46 +1,38 @@
-- hosts: localhost
-  connection: local
+- hosts: localhost # 실행은 Bastion에서 하지만 qm 명령은 target_node로 SSH 연결
   vars_files: ["../../group_vars/all.yml", "vars.yml"]
   tasks:
-    - name: "TEST(Ubuntu) | 3-1 | Inject Cloud-init (SSH + IP)"
-      ansible.builtin.uri:
-        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.vmid }}/config"
-        method: PUT
-        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
-        body_format: form-urlencoded
-        body:
-          # [핵심 수정] replace를 사용하여 모든 줄바꿈 문자를 명시적으로 제거합니다.
-          sshkeys: "{{ lookup('file', bastion_ssh_key_path) | replace('\n', '') | replace('\r', '') | trim }}"
-          ipconfig0: "ip={{ test_vm.ip }}{{ network_netmask }},gw={{ network_gateway }}"
-        validate_certs: false
-        validate_certs: false
+    # 1. Cloud-init 드라이브 생성 (없을 경우 대비)
+    - name: "TEST | 3-1 | CLI | Create Cloud-init Drive"
+      ansible.builtin.command:
+        cmd: "ssh -o StrictHostKeyChecking=no root@{{ test_vm.target_node }} '/usr/sbin/qm set {{ test_vm.vmid }} --ide2 {{ test_vm.ci_storage }}:cloudinit'"
+      ignore_errors: true # 이미 존재할 경우 무시
 
-    - name: "TEST | 3-2 | Start Move Disk"
+    # 2. qm 명령어로 SSH 키 및 IP 주입 (인코딩 지옥 탈출)
+    - name: "TEST | 3-2 | CLI | Inject Config (SSH & IP)"
+      ansible.builtin.shell: |
+        ssh -o StrictHostKeyChecking=no root@{{ test_vm.target_node }} << EOF
+        /usr/sbin/qm set {{ test_vm.vmid }} \
+          --sshkeys <(echo "{{ lookup('file', bastion_ssh_key_path) }}") \
+          --ipconfig0 "ip={{ test_vm.ip }}{{ network_netmask }},gw={{ network_gateway }}"
+        EOF
+
+    # 3. 디스크 이동 (성공했던 API 방식 유지)
+    - name: "TEST | 3-3 | API | Start Move Disk"
       ansible.builtin.uri:
         url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.vmid }}/move_disk"
         method: POST
         headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
-        body_format: form-urlencoded
         body: { disk: "scsi0", storage: "{{ storage_local }}", delete: 1 }
+        body_format: form-urlencoded
         validate_certs: false
       register: m_res
 
-    - name: "TEST | 3-3 | Return Template"
+    # 4. 템플릿 원복 (API)
+    - name: "TEST | 3-4 | API | Return Template"
       ansible.builtin.uri:
         url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.template_id }}/migrate"
         method: POST
         headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
-        body_format: form-urlencoded
         body: { target: "server-01" }
+        body_format: form-urlencoded
         validate_certs: false
-
-    - name: "TEST | 3-4 | Wait for Move Disk"
-      ansible.builtin.uri:
-        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/tasks/{{ m_res.json.data }}/status"
-        method: GET
-        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
-        validate_certs: false
-      register: poll
-      until: "poll.json.data.status == 'stopped'"
-      retries: 100
-      delay: 5
