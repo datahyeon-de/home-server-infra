@@ -2,15 +2,17 @@
   connection: local
   vars_files: ["../../group_vars/all.yml", "vars.yml"]
   tasks:
-    - name: "TEST | 3-1 | Config Cloud-init (SSH + IP)"
+    - name: "TEST(Ubuntu) | 3-1 | Inject Cloud-init (SSH + IP)"
       ansible.builtin.uri:
         url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.vmid }}/config"
         method: PUT
         headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
         body_format: form-urlencoded
         body:
-          sshkeys: "{{ lookup('file', bastion_ssh_key_path).strip() }}"
+          # [핵심 수정] replace를 사용하여 모든 줄바꿈 문자를 명시적으로 제거합니다.
+          sshkeys: "{{ lookup('file', bastion_ssh_key_path) | replace('\n', '') | replace('\r', '') | trim }}"
           ipconfig0: "ip={{ test_vm.ip }}{{ network_netmask }},gw={{ network_gateway }}"
+        validate_certs: false
         validate_certs: false
 
     - name: "TEST | 3-2 | Start Move Disk"

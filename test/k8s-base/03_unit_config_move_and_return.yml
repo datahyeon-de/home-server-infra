@@ -2,18 +2,18 @@
   connection: local
   vars_files: ["../../group_vars/all.yml", "vars.yml"]
   tasks:
-    - name: "TEST | 3-1 | Config Cloud-init (IP Only)"
+    - name: "TEST(K8s) | 3-1 | Inject Cloud-init (IP Only)"
       ansible.builtin.uri:
         url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.vmid }}/config"
         method: PUT
         headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
         body_format: form-urlencoded
         body:
-          # K8s는 SSH 키 주입 생략
+          # K8s는 IP 정보만 주입 (SSH 키 에러 위험 없음)
           ipconfig0: "ip={{ test_vm.ip }}{{ network_netmask }},gw={{ network_gateway }}"
         validate_certs: false
 
-    - name: "TEST | 3-2 | Start Heavy Move Disk"
+    - name: "TEST(K8s) | 3-2 | Start Heavy Move Disk"
       ansible.builtin.uri:
         url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.vmid }}/move_disk"
         method: POST
@@ -23,7 +23,7 @@
         validate_certs: false
       register: m_res
 
-    - name: "TEST | 3-3 | Return Template"
+    - name: "TEST(K8s) | 3-3 | Return Template"
       ansible.builtin.uri:
         url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.template_id }}/migrate"
         method: POST
@@ -32,7 +32,7 @@
         body: { target: "server-01" }
         validate_certs: false
 
-    - name: "TEST | 3-4 | Wait for Heavy Move Disk"
+    - name: "TEST(K8s) | 3-4 | Wait for Move Completion"
       ansible.builtin.uri:
         url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/tasks/{{ m_res.json.data }}/status"
         method: GET
