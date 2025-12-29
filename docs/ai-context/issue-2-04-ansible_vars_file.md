@@ -34,8 +34,8 @@
 | **신규** | **301** | `k8s-worker-01` | .31 | server-02 | 902 | Spark Worker 01 |
 | **신규** | **302** | `k8s-worker-02` | .32 | server-03 | 902 | Spark Worker 02 |
 | **신규** | **303** | `k8s-worker-03` | .33 | server-04 | 902 | Airflow/Services |
-| **신규** | **304** | `data-gen-worker` | .35 | server-05 | 902 | Spike Generator |
-| **신규** | **305** | **`k8s-monitor-01`** | .36 | **server-06** | 902 | **Grafana + K8s Prom Stack** |
+| **신규** | **304** | `data-gen-worker` | .34 | server-05 | 902 | Spike Generator |
+| **신규** | **305** | **`k8s-monitor-01`** | .35 | **server-06** | 902 | **Grafana + K8s Prom Stack** |
 
 ---
 
