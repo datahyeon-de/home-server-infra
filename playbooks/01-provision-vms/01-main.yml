@@ -1,120 +1,39 @@
-# [STEP 1] 존재 확인: 타겟 노드에 해당 VM이 이미 있는지 확인
-- name: "VM-{{ vm.vmid }} | 01-1 | API | Check VM Existence"
-  ansible.builtin.uri:
-    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/status/current"
-    method: GET
-    headers:
-      Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
-    validate_certs: false
-  register: check_res
-  ignore_errors: true
+---
+- name: 01-PROVISION-VMS | Start VM Provisioning Pipeline (Hybrid Mode)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "../../vars/vm_list.yml"
+    - "../../group_vars/all.yml"
+  vars:
+    move_task_tracking: [] # 비동기 move_disk UPID 추적용 리스트
 
-# 이미 존재하면 현재 파일의 나머지 작업 건너뛰기
-- name: "VM-{{ vm.vmid }} | Skip if exists"
-  ansible.builtin.meta: end_host
-  when: check_res.status == 200
+  tasks:
+    - name: 01-1 | Process New VMs
+      include_tasks: "tasks/01-process-single-vm.yml"
+      loop: "{{ vm_configs | selectattr('existing', 'equalto', false) | list }}"
+      loop_control:
+        loop_var: vm
 
-# [STEP 2] Migrate Template: 1번 서버에서 타겟 노드로 템플릿 이동
-- name: "VM-{{ vm.vmid }} | 01-2 | API | Migrate Template to {{ vm.target_node }}"
-  ansible.builtin.uri:
-    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/server-01/qemu/{{ vm.template_id }}/migrate"
-    method: POST
-    headers:
-      Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
-    body_format: form-urlencoded
-    body:
-      target: "{{ vm.target_node }}"
-    validate_certs: false
-  register: migrate_res
+    - name: 01-2 | Final Wait: Verify All Move Disk Tasks
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ item.node }}/tasks/{{ item.upid }}/status"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
+        validate_certs: false
+      register: move_poll_res
+      until: "move_poll_res.json.data.status == 'stopped'"
+      retries: 150
+      delay: 10
+      loop: "{{ move_task_tracking }}"
+      when: move_task_tracking | length > 0
 
-- name: "VM-{{ vm.vmid }} | 01-2.1 | Wait for Migration"
-  ansible.builtin.uri:
-    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/server-01/tasks/{{ migrate_res.json.data }}/status"
-    method: GET
-    headers:
-      Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
-    validate_certs: false
-  register: migrate_poll
-  until: "migrate_poll.json.data.status == 'stopped'"
-  retries: 30
-  delay: 3
-
-# [STEP 3] Linked Clone: 타겟 노드 도착 후 NFS 스토리지에 즉시 클론
-- name: "VM-{{ vm.vmid }} | 01-3 | API | Fast Linked Clone"
-  ansible.builtin.uri:
-    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.template_id }}/clone"
-    method: POST
-    headers:
-      Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
-    body_format: form-urlencoded
-    body:
-      newid: "{{ vm.vmid }}"
-      name: "{{ vm.name }}"
-      full: 0 # Linked Clone
-    validate_certs: false
-  register: clone_res
-
-- name: "VM-{{ vm.vmid }} | 01-3.1 | Wait for Clone"
-  ansible.builtin.uri:
-    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/tasks/{{ clone_res.json.data }}/status"
-    method: GET
-    headers:
-      Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
-    validate_certs: false
-  register: clone_poll
-  until: "clone_poll.json.data.status == 'stopped'"
-  retries: 30
-  delay: 2
-
-# [STEP 4] Move Disk: NFS에서 로컬 드라이브로 디스크 이동 시작
-- name: "VM-{{ vm.vmid }} | 01-4 | API | Start Move Disk to Local LVM"
-  ansible.builtin.uri:
-    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/move_disk"
-    method: POST
-    headers:
-      Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
-    body_format: form-urlencoded
-    body:
-      disk: scsi0
-      storage: "{{ storage_local }}"
-      delete: 1
-    validate_certs: false
-  register: move_res
-
-# 디스크 이동 UPID 저장
-- name: "VM-{{ vm.vmid }} | 01-4.1 | Track Move Task"
-  set_fact:
-    move_task_tracking: "{{ move_task_tracking + [{'node': vm.target_node, 'upid': move_res.json.data, 'vmid': vm.vmid}] }}"
-
-# [STEP 5] Template Return: 템플릿을 다시 server-01로 복귀 (디스크 이동 중에도 수행 가능)
-- name: "VM-{{ vm.vmid }} | 01-5 | API | Return Template to server-01"
-  ansible.builtin.uri:
-    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.template_id }}/migrate"
-    method: POST
-    headers:
-      Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
-    body_format: form-urlencoded
-    body:
-      target: "server-01"
-    validate_certs: false
-
-# [STEP 6] Cloud-init & Start: 부팅 설정 및 시작 (이동 중에도 가능)
-- name: "VM-{{ vm.vmid }} | 01-6 | API | Inject Config & Start"
-  ansible.builtin.uri:
-    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/config"
-    method: PUT
-    headers:
-      Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
-    body_format: form-urlencoded
-    body:
-      sshkeys: "{{ lookup('file', bastion_ssh_key_path).strip() }}"
-      ipconfig0: "ip={{ vm.ip }}{{ network_netmask }},gw={{ network_gateway }}"
-    validate_certs: false
-
-- name: "VM-{{ vm.vmid }} | 01-6.1 | API | Start VM"
-  ansible.builtin.uri:
-    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/status/start"
-    method: POST
-    headers:
-      Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
-    validate_certs: false
+    - name: 01-3 | Inventory Update: Mark all processed VMs as existing
+      ansible.builtin.replace:
+        path: "../../vars/vm_list.yml"
+        regexp: '(?m)^(  - vmid: {{ item.vmid }}\n(    .*\n)* existing: )false$'
+        replace: '\1true'
+      loop: "{{ move_task_tracking }}"
+      when: move_task_tracking | length > 0

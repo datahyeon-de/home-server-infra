@@ -1,59 +1,105 @@
-# [STEP 1] Template Preparation
-- name: "VM-{{ vm.vmid }} | 01-1 | Migrate Template {{ vm.template_id }} to {{ vm.target_node }}"
-  shell: "qm migrate {{ vm.template_id }} {{ vm.target_node }}"
-  delegate_to: server-01
+# [STEP 1] 존재 확인: API
+- name: "VM-{{ vm.vmid }} | 01-1 | API | Check VM Existence"
+  ansible.builtin.uri:
+    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/status/current"
+    method: GET
+    headers:
+      Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
+    validate_certs: false
+  register: check_res
+  ignore_errors: true
+
+# [추가] 이미 존재한다면 '이미 처리된 리스트'에 강제로 추가하여 나중에 YAML 업데이트에 반영
+- name: "VM-{{ vm.vmid }} | Found Existing VM | Sync Tracking List"
+  set_fact:
+    move_task_tracking: "{{ move_task_tracking + [{'node': vm.target_node, 'upid': 'manual_sync', 'vmid': vm.vmid}] }}"
+  when: check_res.status == 200
+
+# 이미 존재하면 아래 생성 로직들은 모두 건너뜁니다.
+- name: "VM-{{ vm.vmid }} | Skip Creation Logic"
+  ansible.builtin.meta: end_host # 이 태스크 파일의 나머지 부분만 종료
+  when: check_res.status == 200
+
+# [STEP 2] Migrate Template: API
+- name: "VM-{{ vm.vmid }} | 01-2 | API | Migrate Template {{ vm.template_id }} to {{ vm.target_node }}"
+  ansible.builtin.uri:
+    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/server-01/qemu/{{ vm.template_id }}/migrate"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
+    body: { target: "{{ vm.target_node }}" }
+    body_format: form-urlencoded
+    validate_certs: false
+  register: migrate_res
   when: vm.target_node != "server-01"
 
-# [STEP 2] Clone Operation
-- name: "VM-{{ vm.vmid }} | 01-2 | Clone VM from Template"
-  community.general.proxmox_kvm:
-    api_user: "{{ pve_user }}"
-    api_token_secret: "{{ pve_token_secret }}"
-    api_host: "{{ pve_api_host }}"
-    node: "{{ vm.target_node }}"
-    vmid: "{{ vm.template_id }}"
-    newid: "{{ vm.vmid }}"
-    name: "{{ vm.name }}"
-    full: true
-    storage: "{{ storage_local }}"
-    timeout: 500
+- name: "VM-{{ vm.vmid }} | Wait for Migration"
+  ansible.builtin.uri:
+    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/server-01/tasks/{{ migrate_res.json.data }}/status"
+    method: GET
+    headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
     validate_certs: false
-  register: clone_status
+  register: m_poll
+  until: "m_poll.json.data.status == 'stopped'"
+  retries: 30
+  delay: 3
+  when: migrate_res.json.data is defined
 
-# [STEP 3] Wait for Completion
-- name: "VM-{{ vm.vmid }} | 01-3 | Poll Task Status until Finished"
-  community.general.proxmox_tasks:
-    api_user: "{{ pve_user }}"
-    api_token_secret: "{{ pve_token_secret }}"
-    api_host: "{{ pve_api_host }}"
-    upid: "{{ clone_status.upid }}"
+# [STEP 3] Linked Clone: API
+- name: "VM-{{ vm.vmid }} | 01-3 | API | Fast Linked Clone from NFS"
+  ansible.builtin.uri:
+    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.template_id }}/clone"
+    method: POST
+    headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+    body: { newid: "{{ vm.vmid }}", name: "{{ vm.name }}", full: 0 }
+    body_format: form-urlencoded
     validate_certs: false
-  register: task_result
-  until: task_result.status == 'stopped'
-  retries: 60
-  delay: 10
+  register: clone_res
 
-# [STEP 4] Template Return
-- name: "VM-{{ vm.vmid }} | 01-4 | Return Template to server-01"
-  shell: "qm migrate {{ vm.template_id }} server-01"
-  delegate_to: "{{ vm.target_node }}"
+# [STEP 4] Cloud-init & Config Injection: CLI (Hybrid)
+- name: "VM-{{ vm.vmid }} | 01-4 | CLI | Set Cloud-init Drive & Settings"
+  ansible.builtin.shell: |
+    # 1. Cloud-init 드라이브 생성 (IDE2)
+    ssh -o StrictHostKeyChecking=no root@{{ vm.target_node }} "/usr/sbin/qm set {{ vm.vmid }} --ide2 {{ storage_local }}:cloudinit"
+    
+    # 2. 인코딩 에러 방지를 위해 qm CLI로 설정 주입
+    ssh -o StrictHostKeyChecking=no root@{{ vm.target_node }} << EOF
+    /usr/sbin/qm set {{ vm.vmid }} \
+      {% if vm.type == 'ubuntu' %}
+      --sshkeys <(echo "{{ lookup('file', bastion_ssh_key_path) }}") \
+      {% endif %}
+      --ipconfig0 "ip={{ vm.ip }}{{ network_netmask }},gw={{ network_gateway }}"
+    EOF
+
+# [STEP 5] Move Disk: API (Background)
+- name: "VM-{{ vm.vmid }} | 01-5 | API | Start Move Disk to Local LVM"
+  ansible.builtin.uri:
+    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/move_disk"
+    method: POST
+    headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+    body: { disk: "scsi0", storage: "{{ storage_local }}", delete: 1 }
+    body_format: form-urlencoded
+    validate_certs: false
+  register: move_res
+
+- name: "VM-{{ vm.vmid }} | 01-5.1 | Track Task"
+  set_fact:
+    move_task_tracking: "{{ move_task_tracking + [{'node': vm.target_node, 'upid': move_res.json.data, 'vmid': vm.vmid}] }}"
+
+# [STEP 6] Return Template & Start VM
+- name: "VM-{{ vm.vmid }} | 01-6 | API | Return Template to server-01"
+  ansible.builtin.uri:
+    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.template_id }}/migrate"
+    method: POST
+    headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+    body: { target: "server-01" }
+    body_format: form-urlencoded
+    validate_certs: false
   when: vm.target_node != "server-01"
 
-# [STEP 5] Initialization (Cloud-init)
-- name: "VM-{{ vm.vmid }} | 01-5 | Inject SSH Key and IP for Ubuntu"
-  shell: |
-    qm set {{ vm.vmid }} --sshkeys {{ bastion_ssh_key_path }}
-    qm set {{ vm.vmid }} --ipconfig0 ip={{ vm.ip }}{{ network_netmask }},gw={{ network_gateway }}
-  delegate_to: "{{ vm.target_node }}"
-  when: vm.type == "ubuntu"
-
-# [STEP 6] Execution
-- name: "VM-{{ vm.vmid }} | 01-6 | Power On the VM"
-  community.general.proxmox_kvm:
-    api_user: "{{ pve_user }}"
-    api_token_secret: "{{ pve_token_secret }}"
-    api_host: "{{ pve_api_host }}"
-    node: "{{ vm.target_node }}"
-    vmid: "{{ vm.vmid }}"
-    state: started
+- name: "VM-{{ vm.vmid }} | 01-6.1 | API | Start VM"
+  ansible.builtin.uri:
+    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/status/start"
+    method: POST
+    headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
     validate_certs: false
