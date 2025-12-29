@@ -11,3 +11,8 @@
 ## 3. 검증 결과
 - 901(Ubuntu), 902(K8s) 템플릿 모두에서 Cloud-init 설정이 정상적으로 반영됨을 유닛 테스트로 확인 완료.
 - 비동기 디스크 이동 중에도 템플릿 원복 및 VM 부팅이 가능함을 확인.
+
+## 4. 트러블슈팅: YAML Syntax Error (Exclude Manual Sync)
+- **현상**: 플레이북 실행 시 `mapping values are not allowed in this context` 에러 발생.
+- **원인**: `name` 필드 내 콜론(`:`) 사용 시 문자열을 따옴표로 감싸지 않아 YAML 파서가 키-값 쌍으로 오인함.
+- **해결**: 모든 `name` 필드에 더블 쿼테이션(`" "`)을 적용하여 문법 오류 해결 및 가독성 확보.
