@@ -38,3 +38,18 @@ home-server-infra/
         └── tasks/
             └── 01-process-single-vm.yml
 ```
+
+---
+## 🚀 다음 단계
+
+Playbook 폴더 생성: mkdir -p playbooks/01-provision-vms/tasks
+
+파일 작성: 통합된 로직에 따라 01-main.yml과 01-process-single-vm.yml에 코드를 배치합니다.
+
+K8s 클러스터링 준비: VM 생성이 완료된 후 진행할 playbooks/02-setup-k8s/ 설계를 이어가겠습니다.
+
+---
+
+### 💡 다음 작업 안내
+
+1.  **`playbooks/02-setup-k8s/`**
