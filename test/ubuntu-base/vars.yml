@@ -1,0 +1,6 @@
+test_vm:
+  vmid: 991
+  name: "unit-test-ubuntu"
+  target_node: "server-04"
+  template_id: 901
+  ip: "192.168.0.251"

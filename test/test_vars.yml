@@ -1,7 +1,0 @@
-# 테스트용 임의 값 (운영 환경과 겹치지 않게 설정)
-test_vm:
-  vmid: 999
-  name: "unit-test-k8s-node"
-  target_node: "server-04"  # 1번 서버가 아닌 다른 노드 선택
-  template_id: 902          # K8s 템플릿 검증용
-  ip: "192.168.0.250"

@@ -1,8 +1,19 @@
 - hosts: localhost
   connection: local
-  vars_files: ["../group_vars/all.yml", "test_vars.yml"]
+  vars_files: ["../../group_vars/all.yml", "vars.yml"]
   tasks:
-    - name: "TEST | 3-1 | Start Move Disk to Local LVM"
+    - name: "TEST | 3-1 | Config Cloud-init (IP Only)"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.vmid }}/config"
+        method: PUT
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        body_format: form-urlencoded
+        body:
+          # K8s는 SSH 키 주입 생략
+          ipconfig0: "ip={{ test_vm.ip }}{{ network_netmask }},gw={{ network_gateway }}"
+        validate_certs: false
+
+    - name: "TEST | 3-2 | Start Heavy Move Disk"
       ansible.builtin.uri:
         url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.vmid }}/move_disk"
         method: POST
@@ -10,9 +21,9 @@
         body_format: form-urlencoded
         body: { disk: "scsi0", storage: "{{ storage_local }}", delete: 1 }
         validate_certs: false
-      register: move_res
+      register: m_res
 
-    - name: "TEST | 3-2 | Return Template to server-01 (Parallel)"
+    - name: "TEST | 3-3 | Return Template"
       ansible.builtin.uri:
         url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.template_id }}/migrate"
         method: POST
@@ -21,13 +32,13 @@
         body: { target: "server-01" }
         validate_certs: false
 
-    - name: "TEST | 3-3 | Wait for Move Disk Completion"
+    - name: "TEST | 3-4 | Wait for Heavy Move Disk"
       ansible.builtin.uri:
-        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/tasks/{{ move_res.json.data }}/status"
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/tasks/{{ m_res.json.data }}/status"
         method: GET
         headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
         validate_certs: false
       register: poll
       until: "poll.json.data.status == 'stopped'"
-      retries: 100
+      retries: 200
       delay: 10
