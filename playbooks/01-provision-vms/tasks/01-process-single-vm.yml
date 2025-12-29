@@ -1,0 +1,59 @@
+# [STEP 1] Template Preparation
+- name: "VM-{{ vm.vmid }} | 01-1 | Migrate Template {{ vm.template_id }} to {{ vm.target_node }}"
+  shell: "qm migrate {{ vm.template_id }} {{ vm.target_node }}"
+  delegate_to: server-01
+  when: vm.target_node != "server-01"
+
+# [STEP 2] Clone Operation
+- name: "VM-{{ vm.vmid }} | 01-2 | Clone VM from Template"
+  community.general.proxmox_kvm:
+    api_user: "{{ pve_user }}"
+    api_token_secret: "{{ pve_token_secret }}"
+    api_host: "{{ pve_api_host }}"
+    node: "{{ vm.target_node }}"
+    vmid: "{{ vm.template_id }}"
+    newid: "{{ vm.vmid }}"
+    name: "{{ vm.name }}"
+    full: true
+    storage: "{{ storage_local }}"
+    timeout: 500
+    validate_certs: false
+  register: clone_status
+
+# [STEP 3] Wait for Completion
+- name: "VM-{{ vm.vmid }} | 01-3 | Poll Task Status until Finished"
+  community.general.proxmox_tasks:
+    api_user: "{{ pve_user }}"
+    api_token_secret: "{{ pve_token_secret }}"
+    api_host: "{{ pve_api_host }}"
+    upid: "{{ clone_status.upid }}"
+    validate_certs: false
+  register: task_result
+  until: task_result.status == 'stopped'
+  retries: 60
+  delay: 10
+
+# [STEP 4] Template Return
+- name: "VM-{{ vm.vmid }} | 01-4 | Return Template to server-01"
+  shell: "qm migrate {{ vm.template_id }} server-01"
+  delegate_to: "{{ vm.target_node }}"
+  when: vm.target_node != "server-01"
+
+# [STEP 5] Initialization (Cloud-init)
+- name: "VM-{{ vm.vmid }} | 01-5 | Inject SSH Key and IP for Ubuntu"
+  shell: |
+    qm set {{ vm.vmid }} --sshkeys {{ bastion_ssh_key_path }}
+    qm set {{ vm.vmid }} --ipconfig0 ip={{ vm.ip }}{{ network_netmask }},gw={{ network_gateway }}
+  delegate_to: "{{ vm.target_node }}"
+  when: vm.type == "ubuntu"
+
+# [STEP 6] Execution
+- name: "VM-{{ vm.vmid }} | 01-6 | Power On the VM"
+  community.general.proxmox_kvm:
+    api_user: "{{ pve_user }}"
+    api_token_secret: "{{ pve_token_secret }}"
+    api_host: "{{ pve_api_host }}"
+    node: "{{ vm.target_node }}"
+    vmid: "{{ vm.vmid }}"
+    state: started
+    validate_certs: false

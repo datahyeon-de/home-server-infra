@@ -1,0 +1,13 @@
+- name: 01-PROVISION-VMS | Start VM Provisioning Pipeline
+  hosts: localhost
+  connection: local
+  vars_files:
+    - "../../vars/vm_list.yml"
+    - "../../group_vars/all.yml"
+
+  tasks:
+    - name: 01-1 | Filter and Process New VMs
+      include_tasks: "tasks/01-process-single-vm.yml"
+      loop: "{{ vm_configs | selectattr('existing', 'equalto', false) | list }}"
+      loop_control:
+        loop_var: vm
