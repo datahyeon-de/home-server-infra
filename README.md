@@ -6,11 +6,11 @@
 
 ## 📌 Project Overview
 
-본 프로젝트는 이커머스 환경의 유저 행동 로그를 실시간으로 수집하고, RFM(Recency, Frequency, Monetary) 및 **이탈 위험군(Churn Risk)**을 분석하여 마케팅에 즉시 활용 가능한 상태로 정제하는 데이터 플랫폼 구축을 목표로 합니다.
+본 프로젝트는 이커머스 환경의 유저 행동 로그를 실시간으로 수집하고, RFM(Recency, Frequency, Monetary) 및 **이탈 위험군(Churn Risk)** 을 분석하여 마케팅에 즉시 활용 가능한 상태로 정제하는 데이터 플랫폼 구축을 목표로 합니다.
 
 - **기간**: 2025.12.29 ~ 2026.01.04 (1주일 집중 프로젝트)
 - **핵심 성과**:
-  - 6대의 Mini PC를 활용한 Hybrid(VM + K8s) 인프라 자급자족.
+  - 6대의 Mini PC를 활용한 Hybrid(VM + K8s) 인프라 홈 서버 구축.
   - 저수준 트래픽부터 Spike(3K TPS) 상황까지 대응하는 가변형 파이프라인.
   - Delta Lake & dbt를 활용한 데이터 신뢰성 및 레이크하우스 아키텍처 구현.
 
@@ -45,7 +45,7 @@
 
 ## 🤖 AI Agent & Collaboration Rules
 
-이 프로젝트는 AI Thought Partner(Gemini/Claude)와 협업하여 **문서 중심 개발(Spec-driven Development)**을 수행합니다.
+이 프로젝트는 AI Thought Partner(Gemini/Claude)와 협업하여 **문서 중심 개발(Spec-driven Development)** 을 수행합니다.
 
 - **Commit Message**: `type: Verb Description #issue` (예: `feat: Add Spark streaming #12`)
 - **Context Log**: 모든 주요 의사결정은 `docs/ai-context/`에 기록됩니다.
