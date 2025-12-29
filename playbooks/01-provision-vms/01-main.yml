@@ -1,5 +1,5 @@
 ---
-- name: 01-PROVISION-VMS | Start VM Provisioning Pipeline (Hybrid & Sync Mode)
+- name: "01-PROVISION-VMS | Start VM Provisioning Pipeline (Hybrid & Sync Mode)"
   hosts: localhost
   connection: local
   gather_facts: false
@@ -10,13 +10,13 @@
     move_task_tracking: [] 
 
   tasks:
-    - name: 01-1 | Process New or Existing VMs
+    - name: "01-1 | Process New or Existing VMs"
       include_tasks: "tasks/01-process-single-vm.yml"
       loop: "{{ vm_configs | selectattr('existing', 'equalto', false) | list }}"
       loop_control:
         loop_var: vm
 
-    - name: 01-2 | Final Wait: Verify Move Disk Tasks (Exclude Manual Sync)
+    - name: "01-2 | Final Wait: Verify Move Disk Tasks (Exclude Manual Sync)"
       ansible.builtin.uri:
         url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ item.node }}/tasks/{{ item.upid }}/status"
         method: GET
@@ -28,12 +28,12 @@
       retries: 150
       delay: 10
       loop: "{{ move_task_tracking }}"
-      # [핵심] 수동 동기화 대상은 Polling을 건너뜁니다.
+      # 수동 동기화 대상(manual_sync)은 API Polling을 시도하지 않도록 제외
       when: 
         - move_task_tracking | length > 0
         - item.upid != 'manual_sync'
 
-    - name: 01-3 | Inventory Update: Sync vm_list.yml to existing=true
+    - name: "01-3 | Inventory Update: Sync vm_list.yml to existing=true"
       ansible.builtin.replace:
         path: "../../vars/vm_list.yml"
         regexp: '(?m)^(  - vmid: {{ item.vmid }}\n(    .*\n)* existing: )false$'
