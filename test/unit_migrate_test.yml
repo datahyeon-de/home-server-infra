@@ -1,0 +1,13 @@
+- hosts: localhost
+  connection: local
+  vars_files: ["../group_vars/all.yml"]
+  tasks:
+    - name: "UNIT TEST | Migrate 901 to server-04"
+      uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/server-01/qemu/901/migrate"
+        method: POST
+        headers:
+          Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
+        body: { "target": "server-04" }
+        body_format: form-urlencoded
+        validate_certs: false

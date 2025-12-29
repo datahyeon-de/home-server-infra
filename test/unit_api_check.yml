@@ -1,0 +1,13 @@
+- hosts: localhost
+  connection: local
+  vars_files: ["../group_vars/all.yml"]
+  tasks:
+    - name: "UNIT TEST | API Connectivity"
+      uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/version"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
+        validate_certs: false
+      register: res
+    - debug: var=res.json.data
