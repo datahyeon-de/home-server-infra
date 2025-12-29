@@ -1,0 +1,33 @@
+- hosts: localhost
+  connection: local
+  vars_files: ["../inventory/group_vars/all.yml", "test_vars.yml"]
+  tasks:
+    - name: "TEST | 3-1 | Start Move Disk to Local LVM"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.vmid }}/move_disk"
+        method: POST
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        body_format: form-urlencoded
+        body: { disk: "scsi0", storage: "{{ storage_local }}", delete: 1 }
+        validate_certs: false
+      register: move_res
+
+    - name: "TEST | 3-2 | Return Template to server-01 (Parallel)"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.template_id }}/migrate"
+        method: POST
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        body_format: form-urlencoded
+        body: { target: "server-01" }
+        validate_certs: false
+
+    - name: "TEST | 3-3 | Wait for Move Disk Completion"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/tasks/{{ move_res.json.data }}/status"
+        method: GET
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        validate_certs: false
+      register: poll
+      until: "poll.json.data.status == 'stopped'"
+      retries: 100
+      delay: 10

@@ -1,0 +1,25 @@
+- hosts: localhost
+  connection: local
+  vars_files: ["../inventory/group_vars/all.yml", "test_vars.yml"]
+  tasks:
+    - name: "TEST | 1-1 | Start Template Migration"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/server-01/qemu/{{ test_vm.template_id }}/migrate"
+        method: POST
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        body_format: form-urlencoded
+        body: { target: "{{ test_vm.target_node }}" }
+        validate_certs: false
+      register: m_res
+
+    - name: "TEST | 1-2 | Wait for Migration Complete"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/server-01/tasks/{{ m_res.json.data }}/status"
+        method: GET
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        validate_certs: false
+      register: poll
+      until: "poll.json.data.status == 'stopped'"
+      retries: 30
+      delay: 3
+      failed_when: "poll.json.data.exitstatus != 'OK'"

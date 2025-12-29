@@ -1,0 +1,24 @@
+- hosts: localhost
+  connection: local
+  vars_files: ["../inventory/group_vars/all.yml", "test_vars.yml"]
+  tasks:
+    - name: "TEST | 2-1 | Execute Fast Linked Clone"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.template_id }}/clone"
+        method: POST
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        body_format: form-urlencoded
+        body: { newid: "{{ test_vm.vmid }}", name: "{{ test_vm.name }}", full: 0 }
+        validate_certs: false
+      register: c_res
+
+    - name: "TEST | 2-2 | Wait for Clone Task"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/tasks/{{ c_res.json.data }}/status"
+        method: GET
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        validate_certs: false
+      register: poll
+      until: "poll.json.data.status == 'stopped'"
+      retries: 20
+      delay: 2

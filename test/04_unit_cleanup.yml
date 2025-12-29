@@ -1,0 +1,23 @@
+- hosts: localhost
+  connection: local
+  vars_files: ["../inventory/group_vars/all.yml", "test_vars.yml"]
+  tasks:
+    - name: "TEST | 4-1 | Destroy Test VM"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.vmid }}"
+        method: DELETE
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        validate_certs: false
+      register: del_res
+      ignore_errors: true
+
+    - name: "TEST | 4-2 | Check Task Progress"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/tasks/{{ del_res.json.data }}/status"
+        method: GET
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        validate_certs: false
+      register: poll
+      until: "poll.json.data.status == 'stopped'"
+      retries: 10
+      delay: 2
