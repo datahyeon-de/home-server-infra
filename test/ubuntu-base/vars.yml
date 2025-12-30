@@ -1,0 +1,12 @@
+test_vm:
+  vmid: 991
+  name: "unit-test-ubuntu"
+  target_node: "server-04"
+  template_id: 901
+  ip: "192.168.0.251"
+  # Cloud-init 드라이브를 생성할 스토리지 (보통 로컬)
+  ci_storage: "nfs-server"
+
+network_netmask: "/24"
+network_gateway: "192.168.0.1"
+bastion_ssh_key_path: "/home/ubuntu/.ssh/id_rsa.pub"

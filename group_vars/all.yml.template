@@ -1,0 +1,18 @@
+# Proxmox API 접속 정보 (실제 토큰 반영)
+pve_api_host: "{your_pve_api_host}"
+pve_api_url: "https://{your_pve_api_host}:8006/api2/json"
+pve_user: "{your_pve_user}@pam!ansible_group_token"  # 토큰 ID 포함 형식
+pve_token_secret: "{your_pve_token_secret}"
+
+# 네트워크 설정
+network_gateway: "{your_network_gateway}"
+network_netmask: "/24"
+network_dns: "8.8.8.8"
+
+# 스토리지 설정
+storage_local: "local-lvm"
+storage_nfs: "nfs-storage"
+
+# 인증 설정 (vm-bastion 기준)
+bastion_ssh_key_path: "/home/ubuntu/.ssh/id_rsa.pub"
+ssh_user: "ubuntu"

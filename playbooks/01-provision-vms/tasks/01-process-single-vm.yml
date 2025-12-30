@@ -1,0 +1,103 @@
+# [STEP 1] 존재 확인: API를 통해 VM이 이미 생성되어 있는지 체크
+- name: "VM-{{ vm.vmid }} | 01-1 | API | Check VM Existence"
+  ansible.builtin.uri:
+    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/status/current"
+    method: GET
+    headers:
+      Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
+    validate_certs: false
+  register: check_res
+  ignore_errors: true
+
+# [Sync Logic] 이미 존재하면 트래킹 리스트에 'manual_sync'로 등록하여 인벤토리 갱신 대상으로 포함
+- name: "VM-{{ vm.vmid }} | Found Existing | Register for Inventory Sync"
+  set_fact:
+    move_task_tracking: "{{ move_task_tracking + [{'node': vm.target_node, 'upid': 'manual_sync', 'vmid': vm.vmid}] }}"
+  when: check_res.status == 200
+
+# [Provisioning Block] VM이 존재하지 않을 때만 실제 생성 로직 실행
+- name: "VM-{{ vm.vmid }} | Provisioning Execution Block"
+  block:
+    # 1. 템플릿 마이그레이션 (server-01 -> target_node)
+    - name: "VM-{{ vm.vmid }} | 01-2 | API | Migrate Template"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/server-01/qemu/{{ vm.template_id }}/migrate"
+        method: POST
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        body: { target: "{{ vm.target_node }}" }
+        body_format: form-urlencoded
+        validate_certs: false
+      register: migrate_res
+      when: vm.target_node != "server-01"
+
+    - name: "VM-{{ vm.vmid }} | 01-2.1 | Wait for Migration"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/server-01/tasks/{{ migrate_res.json.data }}/status"
+        method: GET
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        validate_certs: false
+      register: m_poll
+      until: "m_poll.json.data.status == 'stopped'"
+      retries: 30
+      delay: 3
+      when: migrate_res.json.data is defined
+
+    # 2. NFS Linked Clone 생성
+    - name: "VM-{{ vm.vmid }} | 01-3 | API | Fast Linked Clone"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.template_id }}/clone"
+        method: POST
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        body: { newid: "{{ vm.vmid }}", name: "{{ vm.name }}", full: 0 }
+        body_format: form-urlencoded
+        validate_certs: false
+      register: clone_res
+
+    # 3. Cloud-init 드라이브 생성 및 설정 주입 (qm CLI 하이브리드)
+    - name: "VM-{{ vm.vmid }} | 01-4 | CLI | Set Cloud-init Drive & Config"
+      ansible.builtin.shell: |
+        ssh -o StrictHostKeyChecking=no root@{{ vm.target_node }} "/usr/sbin/qm set {{ vm.vmid }} --ide2 {{ storage_local }}:cloudinit"
+        ssh -o StrictHostKeyChecking=no root@{{ vm.target_node }} << EOF
+        /usr/sbin/qm set {{ vm.vmid }} \
+          {% if vm.type == 'ubuntu' %}
+          --sshkeys <(echo "{{ lookup('file', bastion_ssh_key_path) }}") \
+          {% endif %}
+          --ipconfig0 "ip={{ vm.ip }}{{ network_netmask }},gw={{ network_gateway }}"
+        EOF
+
+    # 4. 디스크 로컬 이동 (비동기)
+    - name: "VM-{{ vm.vmid }} | 01-5 | API | Start Move Disk"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/move_disk"
+        method: POST
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        body: { disk: "scsi0", storage: "{{ storage_local }}", delete: 1 }
+        body_format: form-urlencoded
+        validate_certs: false
+      register: move_res
+
+    # 이동 작업 UPID를 리스트에 등록 (실제 생성된 경우)
+    - name: "VM-{{ vm.vmid }} | 01-5.1 | Track New Provision"
+      set_fact:
+        move_task_tracking: "{{ move_task_tracking + [{'node': vm.target_node, 'upid': move_res.json.data, 'vmid': vm.vmid}] }}"
+
+    # 5. 템플릿 원복 및 VM 부팅
+    - name: "VM-{{ vm.vmid }} | 01-6 | API | Return Template & Start"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.template_id }}/migrate"
+        method: POST
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        body: { target: "server-01" }
+        body_format: form-urlencoded
+        validate_certs: false
+      when: vm.target_node != "server-01"
+
+    - name: "VM-{{ vm.vmid }} | 01-6.1 | API | Power On"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/status/start"
+        method: POST
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        validate_certs: false
+
+  # [핵심] VM이 존재하지 않을 때만 실행 (존재할 경우 위 set_fact만 실행되고 이 블록은 스킵됨)
+  when: check_res.status != 200

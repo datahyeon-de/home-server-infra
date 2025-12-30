@@ -1,0 +1,45 @@
+---
+- name: "01-PROVISION-VMS | Start VM Provisioning Pipeline (Hybrid & Sync Mode)"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "../../vars/vm_list.yml"
+    - "../../group_vars/all.yml"
+  vars:
+    # 생성 또는 동기화된 모든 VM의 상태를 추적하기 위한 리스트
+    move_task_tracking: [] 
+
+  tasks:
+    - name: "01-1 | Process Each VM from Inventory"
+      include_tasks: "tasks/01-process-single-vm.yml"
+      loop: "{{ vm_configs | selectattr('existing', 'equalto', false) | list }}"
+      loop_control:
+        loop_var: vm
+
+    - name: "01-2 | Final Wait: Verify Move Disk Tasks (Exclude Manual Sync)"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ item.node }}/tasks/{{ item.upid }}/status"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}"
+        validate_certs: false
+      register: move_poll_res
+      until: "move_poll_res.json.data.status == 'stopped'"
+      retries: 150
+      delay: 10
+      loop: "{{ move_task_tracking }}"
+      # 수동으로 이미 생성된 VM(manual_sync)은 Polling 대상에서 제외
+      when: 
+        - move_task_tracking | length > 0
+        - item.upid != 'manual_sync'
+        - item.upid != 'sync_only'
+
+    - name: "01-3 | Inventory Update: Sync vm_list.yml to existing=true"
+      ansible.builtin.replace:
+        path: "../../vars/vm_list.yml"
+        # YAML 인덴트와 형식을 유지하며 existing: false만 true로 변경
+        regexp: '(?m)^(\s+- vmid: {{ item.vmid }}\n(\s+.*\n)*?\s+existing: )false$'
+        replace: '\1true'
+      loop: "{{ move_task_tracking }}"
+      when: move_task_tracking | length > 0

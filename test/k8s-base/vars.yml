@@ -1,0 +1,6 @@
+test_vm:
+  vmid: 992
+  name: "unit-test-k8s"
+  target_node: "server-05"
+  template_id: 902
+  ip: "192.168.0.252"
