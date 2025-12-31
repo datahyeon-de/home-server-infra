@@ -4,8 +4,8 @@
   connection: local
   gather_facts: false
   vars_files:
-    - "../../vars/vm_list.yml"
-    - "../../group_vars/all.yml"
+    - "../vars/vm_list.yml"      # playbooks/vars/vm_list.yml
+    - "../group_vars/all.yml"    # playbooks/group_vars/all.yml
   
   tasks:
     - name: "02-1 | Process Resource Modification for Target VMs"
