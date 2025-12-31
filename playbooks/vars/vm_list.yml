@@ -1,3 +1,13 @@
+# playbooks/vars/vm_list.yml
+vm_configs: # 이 키를 추가
+  - vmid: 101
+    ip: "192.168.0.11"
+    target_node: "server-01"
+    existing: true
+    throttle: true
+    new_cores: 4
+    new_memory: 8192
+
   - vmid: 101
     name: "kafka-01"
     ip: "192.168.0.11"
