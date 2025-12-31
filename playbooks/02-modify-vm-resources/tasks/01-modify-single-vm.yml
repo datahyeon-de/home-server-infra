@@ -12,17 +12,25 @@
 
 - name: "VM-{{ vm.vmid }} | Resource Modification Process"
   block:
-    # [STEP 2] 실행 중이면 안전하게 셧다운
-    - name: "VM-{{ vm.vmid }} | 02-1.2 | API | Shutdown if Running"
-      community.proxmox.proxmox_kvm:
-        api_host: "{{ pve_api_host }}"
-        api_user: "{{ pve_user }}"
-        api_token_id: "{{ pve_token_name }}"
-        api_token_secret: "{{ pve_token_secret }}"
-        vmid: "{{ vm.vmid }}"
-        node: "{{ vm.target_node }}"
-        state: stopped
-        timeout: 180
+    # [STEP 2] 실행 중이면 안전하게 셧다운 및 종료 대기
+    - name: "VM-{{ vm.vmid }} | 02-1.2.1 | API | Send Shutdown Signal"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/status/shutdown"
+        method: POST
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        validate_certs: false
+      when: vm_status.json.data.status == "running"
+
+    - name: "VM-{{ vm.vmid }} | 02-1.2.2 | API | Wait for Status to be Stopped"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/status/current"
+        method: GET
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        validate_certs: false
+      register: shutdown_poll
+      until: "shutdown_poll.json.data.status == 'stopped'"
+      retries: 60 # 5초 간격으로 최대 5분 대기
+      delay: 5
       when: vm_status.json.data.status == "running"
 
     # [STEP 3] 자원 수정 (코어, 메모리)
