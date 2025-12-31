@@ -1,0 +1,59 @@
+# playbooks/tests/kvm-test/01_unit_kvm_module_test.yml
+---
+- name: "[Unit] Proxmox KVM Module Comprehensive Test"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "../../group_vars/all.yml"
+    - "./vars.yml"
+
+  tasks:
+    - name: "KVM-TEST | 1-1 | Clone VM using API (Stable)"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.template_id }}/clone"
+        method: POST
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        body_format: form-urlencoded
+        body: { newid: "{{ test_vm.vmid }}", name: "{{ test_vm.name }}", full: 0 }
+        validate_certs: false
+      register: clone_res
+
+    - name: "KVM-TEST | 1-2 | Wait for Clone"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/tasks/{{ clone_res.json.data }}/status"
+        method: GET
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        validate_certs: false
+      register: task_wait
+      until: "task_wait.json.data.status == 'stopped'"
+      retries: 30
+      delay: 5
+
+    - name: "KVM-TEST | 1-3 | Add Cloud-init Drive via API (Stable)"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.vmid }}/config"
+        method: PUT
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        body_format: form-urlencoded
+        body:
+          ide2: "{{ storage_local }}:cloudinit" # 하드웨어를 명시적으로 생성/추가
+        validate_certs: false
+
+    - name: "KVM-TEST | 1-4 | Configure Resources & Cloud-init (Module)"
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_user }}"
+        api_token_id: "{{ pve_token_name }}"
+        api_token_secret: "{{ pve_token_secret }}"
+        vmid: "{{ test_vm.vmid }}"
+        node: "{{ test_vm.target_node }}"
+        update: yes
+        cores: "{{ test_vm.cores }}"
+        memory: "{{ test_vm.memory }}"
+        nameservers: "{{ network_dns }}"
+        sshkeys: "{{ lookup('file', local_ssh_key_path) }}"
+        ipconfig:
+          ipconfig0: "ip={{ test_vm.ip }}{{ network_netmask }},gw={{ network_gateway }}"
+        validate_certs: false
+      register: config_res

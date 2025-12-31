@@ -1,0 +1,12 @@
+# playbooks/tests/kvm-test/vars.yml
+test_vm:
+  vmid: 499
+  name: "kvm-module-test"
+  target_node: "server-01"
+  template_id: 901
+  ip: "192.168.0.49"
+  memory: 4096
+  cores: 2
+
+pve_api_host: "tc-server-01" # 요청하신 대로 API 호스트 수정
+local_ssh_key_path: "YOUR_SSH_KEY_PATH"

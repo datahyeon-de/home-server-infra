@@ -1,0 +1,22 @@
+# playbooks/tests/kvm-test/01_unit_kvm_module_test.yml
+---
+- name: "[Unit] Proxmox KVM Module Delete Test VM"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "../../group_vars/all.yml"
+    - "./vars.yml"
+
+  tasks:
+    - name: "KVM-TEST | 1-1 | Cleanup Test VM"
+      community.general.proxmox_kvm:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_user }}"
+        api_token_id: "{{ pve_token_name }}"
+        api_token_secret: "{{ pve_token_secret }}"
+        vmid: "{{ test_vm.vmid }}"
+        node: "{{ test_vm.target_node }}"
+        state: absent
+        validate_certs: false
+      when: true # 테스트 확인 후 수동으로 true로 바꿔서 실행하세요.

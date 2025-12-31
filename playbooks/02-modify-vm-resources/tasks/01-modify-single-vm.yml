@@ -1,0 +1,63 @@
+# playbooks/02-modify-vm-resources/tasks/01-modify-single-vm.yml
+---
+# [STEP 1] 존재 확인 및 현재 상태 파악
+- name: "VM-{{ vm.vmid }} | 02-1.1 | API | Check Current Status"
+  ansible.builtin.uri:
+    url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ vm.target_node }}/qemu/{{ vm.vmid }}/status/current"
+    method: GET
+    headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+    validate_certs: false
+  register: vm_status
+  ignore_errors: true
+
+- name: "VM-{{ vm.vmid }} | Resource Modification Process"
+  block:
+    # [STEP 2] 실행 중이면 안전하게 셧다운
+    - name: "VM-{{ vm.vmid }} | 02-1.2 | API | Shutdown if Running"
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_user }}"
+        api_token_id: "{{ pve_token_name }}"
+        api_token_secret: "{{ pve_token_secret }}"
+        vmid: "{{ vm.vmid }}"
+        node: "{{ vm.target_node }}"
+        state: stopped
+        timeout: 60
+      when: vm_status.json.data.status == "running"
+
+    # [STEP 3] 자원 수정 (코어, 메모리)
+    - name: "VM-{{ vm.vmid }} | 02-1.3 | API | Apply New Resource Limits"
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_user }}"
+        api_token_id: "{{ pve_token_name }}"
+        api_token_secret: "{{ pve_token_secret }}"
+        vmid: "{{ vm.vmid }}"
+        node: "{{ vm.target_node }}"
+        update: yes
+        cores: "{{ vm.new_cores | default(omit) }}"
+        memory: "{{ vm.new_memory | default(omit) }}"
+      register: mod_res
+
+    # [STEP 4] 설정 반영 대기 (잠시 정적 대기)
+    - name: "VM-{{ vm.vmid }} | 02-1.4 | Wait for config to settle"
+      ansible.builtin.pause:
+        seconds: 3
+
+    # [STEP 5] 수정 완료 후 부팅
+    - name: "VM-{{ vm.vmid }} | 02-1.5 | API | Power On after Update"
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_user }}"
+        api_token_id: "{{ pve_token_name }}"
+        api_token_secret: "{{ pve_token_secret }}"
+        vmid: "{{ vm.vmid }}"
+        node: "{{ vm.target_node }}"
+        state: started
+      register: start_res
+
+    - name: "VM-{{ vm.vmid }} | 02-1.6 | Log Modification Result"
+      debug:
+        msg: "VM {{ vm.vmid }} resources updated and restarted. (Changed: {{ mod_res.changed }})"
+
+  when: vm_status.status == 200

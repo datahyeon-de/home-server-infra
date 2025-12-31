@@ -1,0 +1,17 @@
+---
+- name: "02-MODIFY-VM-RESOURCES | Dynamic Resource Throttling & Scaling"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "../vars/vm_list.yml"
+    - "../group_vars/all.yml"
+  
+  tasks:
+    - name: "02-1 | Process Resource Modification for Target VMs"
+      include_tasks: "tasks/01-modify-single-vm.yml"
+      loop: "{{ vm_configs | selectattr('existing', 'equalto', true) | list }}"
+      loop_control:
+        loop_var: vm
+      # 특정 태그나 조건을 통해 대상 VM을 필터링할 수도 있습니다.
+      when: vm.throttle is defined and vm.throttle == true
