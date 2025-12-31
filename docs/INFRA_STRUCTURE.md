@@ -30,6 +30,29 @@
 | **신규** | 304 | `k8s-worker-04` | .34 | server-05 | 902 | CRM Data Gen Worker |
 | **신규** | 305 | `k8s-worker-05` | .35 | server-06 | 902 | K8s Monitor (Grafana) |
 
+## 🖥️ 최종 VM 자원 할당 현황 (VM Resource Allocation)
+
+| 역할 | VMID | 호스트명 | CPU (Cores) | Memory (GiB) | 비고 |
+| :--- | :---: | :--- | :---: | :---: | :--- |
+| **Bastion** | 100 | `vm-bastion` | 1 | 1 | 관리 및 접속용 |
+| **Kafka Broker 01** | 101 | `kafka-01` | 4 | 8 | 자원 상향 (Throttled) |
+| **Kafka Broker 02** | 102 | `kafka-02` | 4 | 8 | 자원 상향 (Throttled) |
+| **Kafka Broker 03** | 103 | `kafka-03` | 4 | 8 | 자원 상향 (Throttled) |
+| **Object Storage** | 104 | `minio-server` | 4 | 8 | 자원 상향 (Throttled) |
+| **Data Warehouse** | 105 | `postgres-dw` | 4 | 8 | 자원 상향 (Throttled) |
+| **Host Monitor** | 106 | `infra-prom-01` | 2 | 4 | 기본 사양 유지 |
+| **K8s Master** | 300 | `k8s-master-01` | 4 | 8 | 자원 상향 (Throttled) |
+| **Spark Worker 01** | 301 | `k8s-worker-01` | 6 | 12 | 최대 사양 할당 (Throttled) |
+| **Spark Worker 02** | 302 | `k8s-worker-02` | 6 | 12 | 최대 사양 할당 (Throttled) |
+| **Airflow/Service** | 303 | `k8s-worker-03` | 4 | 8 | 자원 상향 (Throttled) |
+| **Data Generator** | 304 | `data-gen-worker` | 2 | 4 | 기본 사양 유지 |
+| **K8s Monitor** | 305 | `k8s-monitor-01` | 4 | 8 | 자원 상향 (Throttled) |
+
+**설계 요약:**
+- **기본 사양**: 2 Cores / 4 GiB RAM (설정 변경이 없는 일반 서버군)
+- **중점 사양**: 4 Cores / 8 GiB RAM (Kafka, Master, Storage 등 핵심 인프라)
+- **고부하 사양**: 6 Cores / 12 GiB RAM (실질적인 Spark 연산 노드)
+
 ## 🛠️ 네트워크 공통 설정
 - **Gateway**: 192.168.0.1
 - **Netmask**: /24
