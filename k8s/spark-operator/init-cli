@@ -1,0 +1,4 @@
+helm install my-spark-operator spark-operator/spark-operator \
+    --namespace spark-operator \
+    --create-namespace \
+    -f my-values.yaml

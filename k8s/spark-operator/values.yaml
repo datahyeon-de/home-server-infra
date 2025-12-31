@@ -1,0 +1,5 @@
+webhook:
+  enable: true
+
+nodeSelector:
+  workload-type: spark-executor
