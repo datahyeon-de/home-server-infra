@@ -5,4 +5,4 @@ __pycache__/
 .venv/
 node_modules/
 
-group_vars/all.yml
+playbooks/group_vars/all.yml
