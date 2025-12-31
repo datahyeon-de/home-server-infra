@@ -1,0 +1,130 @@
+  - vmid: 101
+    name: "kafka-01"
+    ip: "192.168.0.11"
+    target_node: "server-01"
+    existing: true
+    throttle: true
+    new_cores: 4
+    new_memory: 8192
+
+  - vmid: 102
+    name: "kafka-02"
+    ip: "192.168.0.12"
+    target_node: "server-02"
+    existing: true
+    throttle: true
+    new_cores: 4
+    new_memory: 8192
+
+  - vmid: 103
+    name: "kafka-03"
+    ip: "192.168.0.13"
+    target_node: "server-03"
+    existing: true
+    throttle: true
+    new_cores: 4
+    new_memory: 8192
+
+  # --- New Ubuntu-based VMs (Template 901) ---
+  - vmid: 104
+    name: "minio-server"
+    ip: "192.168.0.14"
+    target_node: "server-04"
+    template_id: 901
+    type: "ubuntu"
+    role: "standalone"
+    existing: true
+    throttle: true
+    new_cores: 4
+    new_memory: 8192
+
+  - vmid: 105
+    name: "postgres-dw"
+    ip: "192.168.0.15"
+    target_node: "server-05"
+    template_id: 901
+    type: "ubuntu"
+    role: "standalone"
+    existing: true
+    throttle: true
+    new_cores: 4
+    new_memory: 8192
+
+  - vmid: 106
+    name: "infra-prom-01"
+    ip: "192.168.0.16"
+    target_node: "server-06"
+    template_id: 901
+    type: "ubuntu"
+    role: "standalone"
+    existing: true
+
+  # --- New Kubernetes Nodes (Template 902) ---
+  - vmid: 300
+    name: "k8s-master-01"
+    ip: "192.168.0.30"
+    target_node: "server-01"
+    template_id: 902
+    type: "k8s"
+    role: "master"
+    existing: true
+    throttle: true
+    new_cores: 4
+    new_memory: 8192
+
+  - vmid: 301
+    name: "k8s-worker-01"
+    ip: "192.168.0.31"
+    target_node: "server-02"
+    template_id: 902
+    type: "k8s"
+    role: "worker"
+    existing: true
+    throttle: true
+    new_cores: 6
+    new_memory: 12288
+
+  - vmid: 302
+    name: "k8s-worker-02"
+    ip: "192.168.0.32"
+    target_node: "server-03"
+    template_id: 902
+    type: "k8s"
+    role: "worker"
+    existing: true
+    throttle: true
+    new_cores: 6
+    new_memory: 12288
+
+  - vmid: 303
+    name: "k8s-worker-03"
+    ip: "192.168.0.33"
+    target_node: "server-04"
+    template_id: 902
+    type: "k8s"
+    role: "worker"
+    existing: true
+    throttle: true
+    new_cores: 4
+    new_memory: 8192
+
+  - vmid: 304
+    name: "data-gen-worker"
+    ip: "192.168.0.34"
+    target_node: "server-05"
+    template_id: 902
+    type: "k8s"
+    role: "worker"
+    existing: true
+
+  - vmid: 305
+    name: "k8s-monitor-01"
+    ip: "192.168.0.35"
+    target_node: "server-06"
+    template_id: 902
+    type: "k8s"
+    role: "worker"
+    existing: true
+    throttle: true
+    new_cores: 4
+    new_memory: 8192
