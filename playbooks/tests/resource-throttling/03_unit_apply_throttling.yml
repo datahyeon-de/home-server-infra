@@ -1,0 +1,29 @@
+# playbooks/tests/resource-throttling/03_unit_apply_throttling.yml
+---
+- name: "[Unit] Apply Resource Throttling"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "../../group_vars/all.yml"
+    - "./vars.yml"
+
+  tasks:
+    - name: "TEST | 3-1 | Update CPU and Memory via API"
+      community.general.proxmox_kvm:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_user }}"
+        api_token_id: "{{ pve_token_name }}"
+        api_token_secret: "{{ pve_token_secret }}"
+        vmid: "{{ test_vm.vmid }}"
+        node: "{{ test_vm.target_node }}"
+        update: yes
+        cores: "{{ throttling_targets.new_cpu_cores }}"
+        memory: "{{ throttling_targets.new_memory_mb }}"
+      register: update_result
+
+    - name: "TEST | 3-2 | Verify change via API response"
+      assert:
+        that:
+          - update_result.changed == true
+        fail_msg: "Resource update failed or no changes detected."

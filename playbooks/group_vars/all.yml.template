@@ -1,0 +1,18 @@
+# Proxmox API 접속 정보
+pve_api_host: "192.168.0.101"
+pve_user: "YOUR-PVE-USER"
+pve_token_name: "YOUR-TOKEN-NAME"
+pve_token_secret: "YOUR-TOKEN-SECRET"
+
+# 네트워크 설정
+network_gateway: "192.168.0.1"
+network_netmask: "/24"
+network_dns: "8.8.8.8"
+
+# 스토리지 설정 (NFS에서 생성 후 로컬로 이동)
+storage_local: "local-lvm"
+storage_nfs: "nfs-storage"
+
+# 인증 설정
+bastion_ssh_key_path: "YOUR-SSH-KEY-PATH"
+ssh_user: "ubuntu"

@@ -1,0 +1,12 @@
+# playbooks/tests/resource-throttling/vars.yml
+test_vm:
+  vmid: 399
+  name: "resource-test-vm"
+  target_node: "server-01"
+  template_id: 901 # Ubuntu Base Template
+  ip: "192.168.0.39"
+
+# 조정할 자원 목표치
+throttling_targets:
+  new_cpu_cores: 4
+  new_memory_mb: 8192

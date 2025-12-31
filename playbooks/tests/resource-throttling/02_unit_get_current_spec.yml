@@ -1,0 +1,22 @@
+# playbooks/tests/resource-throttling/02_unit_get_current_spec.yml
+---
+- name: "[Unit] Get Current VM Specification"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "../../group_vars/all.yml"
+    - "./vars.yml"
+
+  tasks:
+    - name: "TEST | 2-1 | Fetch VM Config"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.vmid }}/config"
+        method: GET
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        validate_certs: false
+      register: config_res
+
+    - name: "TEST | 2-2 | Display Current Specs"
+      debug:
+        msg: "Current Cores: {{ config_res.json.data.cores | default('N/A') }}, Current Memory: {{ config_res.json.data.memory | default('N/A') }}MB"

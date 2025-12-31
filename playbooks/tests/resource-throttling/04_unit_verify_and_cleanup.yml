@@ -1,0 +1,41 @@
+# playbooks/tests/resource-throttling/04_unit_verify_and_cleanup.yml
+---
+- name: "[Unit] Verify and Cleanup"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "../../group_vars/all.yml"
+    - "./vars.yml"
+
+  tasks:
+    - name: "TEST | 4-1 | Get Final Config"
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ test_vm.target_node }}/qemu/{{ test_vm.vmid }}/config"
+        method: GET
+        headers: { Authorization: "PVEAPIToken={{ pve_user }}!{{ pve_token_name }}={{ pve_token_secret }}" }
+        validate_certs: false
+      register: final_config
+
+    - name: "TEST | 4-2 | Assert Resources Matched Targets"
+      assert:
+        that:
+          - final_config.json.data.cores | int == throttling_targets.new_cpu_cores
+          - final_config.json.data.memory | int == throttling_targets.new_memory_mb
+        success_msg: "Resources successfully throttled to {{ throttling_targets.new_cpu_cores }} Cores and {{ throttling_targets.new_memory_mb }}MB RAM."
+
+    - name: "TEST | 4-3 | Clean up Test VM"
+      community.general.proxmox_kvm:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_user }}"
+        api_token_id: "{{ pve_token_name }}"
+        api_token_secret: "{{ pve_token_secret }}"
+        vmid: "{{ test_vm.vmid }}"
+        node: "{{ test_vm.target_node }}"
+        state: absent
+      register: cleanup_res
+
+    - name: "TEST | 4-4 | Confirm Cleanup"
+      debug:
+        msg: "Test VM {{ test_vm.vmid }} has been deleted."
+      when: cleanup_res.changed
