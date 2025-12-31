@@ -60,4 +60,4 @@
       debug:
         msg: "VM {{ vm.vmid }} resources updated and restarted. (Changed: {{ mod_res.changed }})"
 
-  when: vm_status.status == 200
+  when: vm_status.status is defined and vm_status.status == 200
