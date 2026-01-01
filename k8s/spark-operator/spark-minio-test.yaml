@@ -1,0 +1,82 @@
+apiVersion: "sparkoperator.k8s.io/v1beta2"
+kind: SparkApplication
+metadata:
+  name: spark-minio-test
+  namespace: default
+spec:
+  type: Python
+  mode: cluster
+  image: "hyeondata/spark-py-aws:3.5.7-v1" # 본인의 이미지명
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: "local:///opt/spark/work-dir/minio-test.py"
+  sparkVersion: "3.5.7"
+  restartPolicy:
+    type: Never
+  sparkConf:
+    # MinIO(S3A) 핵심 설정
+    "spark.hadoop.fs.s3a.endpoint": "http://192.168.0.14:9000"
+    "spark.hadoop.fs.s3a.access.key": "spark-user" # 또는 시크릿 참조 가능
+    "spark.hadoop.fs.s3a.secret.key": "spark-password-123"
+    "spark.hadoop.fs.s3a.path.style.access": "true"
+    "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
+    "spark.hadoop.fs.s3a.endpoint.region": "ap-northeast-2"
+    "spark.hadoop.fs.s3a.change.detection.mode": "none"
+    "spark.hadoop.fs.s3a.aws.credentials.provider": "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
+    "spark.hadoop.fs.s3a.connection.ssl.enabled": "false"
+  driver:
+    cores: 1
+    memory: "512m"
+    labels:
+      version: 3.5.7
+    serviceAccount: spark-sa
+    # 시크릿을 환경변수로 주입 (선택 사항)
+    envFrom:
+      - secretRef:
+          name: minio-s3-keys
+    # ConfigMap 마운트
+    volumeMounts:
+      - name: "test-script"
+        mountPath: "/opt/spark/work-dir"
+    env:
+      - name: ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: minio-s3-keys
+            key: access-key
+      - name: SECRET_KEY
+        valueFrom:
+          secretKeyRef:
+            name: minio-s3-keys
+            key: secret-key
+      - name: S3_ENDPOINT
+        valueFrom:
+          secretKeyRef:
+            name: minio-s3-keys
+            key: endpoint
+  executor:
+    cores: 1
+    instances: 1
+    memory: "512m"
+    env:
+      - name: ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: minio-s3-keys
+            key: access-key
+      - name: SECRET_KEY
+        valueFrom:
+          secretKeyRef:
+            name: minio-s3-keys
+            key: secret-key
+      - name: S3_ENDPOINT
+        valueFrom:
+          secretKeyRef:
+            name: minio-s3-keys
+            key: endpoint
+    envFrom:
+      - secretRef:
+          name: minio-s3-keys
+  volumes:
+    - name: "test-script"
+      configMap:
+        name: spark-test-script

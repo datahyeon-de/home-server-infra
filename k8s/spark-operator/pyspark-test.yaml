@@ -1,0 +1,27 @@
+apiVersion: "sparkoperator.k8s.io/v1beta2"
+kind: SparkApplication
+metadata:
+  name: pyspark-test
+  namespace: default
+spec:
+  type: Python
+  mode: cluster
+  image: "apache/spark:3.5.7-python3" # 실시간 확인된 최신 버전
+  imagePullPolicy: Always
+  mainApplicationFile: "local:///opt/spark/examples/src/main/python/pi.py" # 이미지 내장 예제
+  arguments: ["1000"]
+  sparkVersion: "3.5.7"
+  restartPolicy:
+    type: Never
+  driver:
+    cores: 1
+    memory: "512m"
+    serviceAccount: spark-sa
+    nodeSelector:
+      workload-type: spark-executor
+  executor:
+    cores: 1
+    instances: 1
+    memory: "512m"
+    nodeSelector:
+      workload-type: spark-executor
