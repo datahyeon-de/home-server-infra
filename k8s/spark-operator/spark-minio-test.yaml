@@ -9,7 +9,6 @@ spec:
   mainApplicationFile: "local:///opt/spark/work-dir/minio-test.py"
   sparkVersion: "3.5.7"
   sparkConf:
-    # 모든 설정은 여기서 관리합니다 (JavaOptions 사용 금지)
     "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
     "spark.hadoop.fs.s3a.endpoint": "http://192.168.0.14:9000"
     "spark.hadoop.fs.s3a.path.style.access": "true"
@@ -17,14 +16,14 @@ spec:
     "spark.hadoop.fs.s3a.metadatastore.impl": "org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore"
     "spark.hadoop.fs.s3a.endpoint.region": "us-east-1"
     "spark.hadoop.fs.s3a.signing-algorithm": "S3SignerType"
-    # [중요] 폴더 경로 사용
+    # [핵심] 리네임 에러 방지 설정
+    "spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version": "2"
     "spark.eventLog.enabled": "true"
     "spark.eventLog.dir": "s3a://spark-logs/test-logs/"
   driver:
     cores: 1
     memory: "512m"
     serviceAccount: spark-sa
-    # javaOptions 섹션 삭제됨
     env:
       - name: AWS_ACCESS_KEY_ID
         valueFrom: { secretKeyRef: { name: minio-s3-keys, key: access-key } }
@@ -37,7 +36,6 @@ spec:
     cores: 1
     instances: 1
     memory: "512m"
-    # javaOptions 섹션 삭제됨
     env:
       - name: AWS_ACCESS_KEY_ID
         valueFrom: { secretKeyRef: { name: minio-s3-keys, key: access-key } }
