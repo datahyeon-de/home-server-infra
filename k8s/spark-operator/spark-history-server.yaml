@@ -41,7 +41,7 @@ spec:
             -Dspark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.EnvironmentVariableCredentialsProvider
             -Dspark.hadoop.fs.s3a.connection.ssl.enabled=false
             -Dspark.hadoop.fs.s3a.user.agent.prefix=MinIO
-            -Dspark.hadoop.fs.s3a.s3guard.dynamo.table.name=  # 또는 false로 S3Guard OFF
+            -Dspark.hadoop.fs.s3a.s3guard.dynamo.table.name=false
         - name: AWS_ACCESS_KEY_ID
           valueFrom: { secretKeyRef: { name: minio-s3-keys, key: access-key } }
         - name: AWS_SECRET_ACCESS_KEY
