@@ -13,20 +13,24 @@ spec:
     "spark.hadoop.fs.s3a.endpoint": "http://192.168.0.14:9000"
     "spark.hadoop.fs.s3a.path.style.access": "true"
     "spark.hadoop.fs.s3a.aws.credentials.provider": "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
+    "spark.hadoop.fs.s3a.endpoint.region": "us-east-1"
+    "spark.hadoop.fs.s3a.signing-algorithm": "S3SignerType"
     "spark.eventLog.enabled": "true"
-    "spark.eventLog.dir": "s3a://spark-logs/test-logs"
+    "spark.eventLog.dir": "s3a://spark-logs/"
   driver:
     cores: 1
     memory: "512m"
     serviceAccount: spark-sa
-    volumeMounts:
-      - name: "test-script"
-        mountPath: "/opt/spark/work-dir"
     env:
       - name: AWS_ACCESS_KEY_ID
         valueFrom: { secretKeyRef: { name: minio-s3-keys, key: access-key } }
       - name: AWS_SECRET_ACCESS_KEY
         valueFrom: { secretKeyRef: { name: minio-s3-keys, key: secret-key } }
+      - name: S3_ENDPOINT
+        value: "http://192.168.0.14:9000"
+    volumeMounts:
+      - name: "test-script"
+        mountPath: "/opt/spark/work-dir"
   executor:
     cores: 1
     instances: 1

@@ -34,14 +34,13 @@ spec:
         env:
         - name: SPARK_HISTORY_OPTS
           value: >-
-            -Dspark.history.fs.logDirectory=s3a://spark-logs/test-logs/
+            -Dspark.history.fs.logDirectory=s3a://spark-logs/
             -Dspark.hadoop.fs.s3a.endpoint=http://192.168.0.14:9000
             -Dspark.hadoop.fs.s3a.path.style.access=true
             -Dspark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
             -Dspark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.EnvironmentVariableCredentialsProvider
-            -Dspark.hadoop.fs.s3a.connection.ssl.enabled=false
-            -Dspark.hadoop.fs.s3a.user.agent.prefix=MinIO
-            -Dspark.hadoop.fs.s3a.s3guard.dynamo.table.name=false
+            -Dspark.hadoop.fs.s3a.endpoint.region=us-east-1
+            -Dspark.hadoop.fs.s3a.signing-algorithm=S3SignerType
         - name: AWS_ACCESS_KEY_ID
           valueFrom: { secretKeyRef: { name: minio-s3-keys, key: access-key } }
         - name: AWS_SECRET_ACCESS_KEY
