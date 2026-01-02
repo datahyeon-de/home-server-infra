@@ -41,6 +41,7 @@ spec:
             -Dspark.hadoop.fs.s3a.path.style.access=true
             -Dspark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.EnvironmentVariableCredentialsProvider
             -Dspark.hadoop.fs.s3a.endpoint.region=ap-northeast-2
+            -Dspark.hadoop.fs.s3a.metadatastore.impl=org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore
         - name: AWS_ACCESS_KEY_ID
           valueFrom: { secretKeyRef: { name: minio-s3-keys, key: access-key } }
         - name: AWS_SECRET_ACCESS_KEY

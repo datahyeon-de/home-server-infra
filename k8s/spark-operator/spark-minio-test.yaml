@@ -21,7 +21,7 @@ spec:
     "spark.hadoop.fs.s3a.endpoint.region": "ap-northeast-2"
     "spark.hadoop.fs.s3a.connection.ssl.enabled": "false"
     "spark.eventLog.enabled": "true"
-    "spark.eventLog.dir": "s3a://spark-logs/"
+    "spark.eventLog.dir": "s3a://spark-logs"
     "spark.yarn.historyServer.address": "http://spark-history-server:18080"
 
   driver:
