@@ -36,7 +36,7 @@ spec:
         # Provider 사용 
         - name: SPARK_HISTORY_OPTS
           value: >-
-            -Dspark.history.fs.logDirectory=s3a://spark-logs/
+            -Dspark.history.fs.logDirectory=s3a://spark-logs
             -Dspark.hadoop.fs.s3a.endpoint=http://192.168.0.14:9000
             -Dspark.hadoop.fs.s3a.path.style.access=true
             -Dspark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.EnvironmentVariableCredentialsProvider
