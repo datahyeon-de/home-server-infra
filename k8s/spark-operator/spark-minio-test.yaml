@@ -16,10 +16,9 @@ spec:
     "spark.hadoop.fs.s3a.metadatastore.impl": "org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore"
     "spark.hadoop.fs.s3a.endpoint.region": "us-east-1"
     "spark.hadoop.fs.s3a.signing-algorithm": "S3SignerType"
-    # [핵심] 리네임 에러 방지 설정
     "spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version": "2"
     "spark.eventLog.enabled": "true"
-    "spark.eventLog.dir": "s3a://spark-logs/test-logs/"
+    "spark.eventLog.dir": "s3a://datalake/logs/spark-log/"
   driver:
     cores: 1
     memory: "512m"

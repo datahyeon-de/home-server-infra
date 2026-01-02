@@ -15,18 +15,18 @@ spark = SparkSession.builder \
     .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2") \
     .getOrCreate()
 
-data = [("Proxmox", 1), ("Kubernetes", 1), ("MinIO-Final-Victory", 1)]
+# 테스트 데이터
+data = [("HomeServer", 1), ("MinIO", 1), ("Datalake-Architecture", 1)]
 df = spark.createDataFrame(data, ["item", "count"])
 
-# 사용자님이 찾으신 해결책: 하위 폴더 명시
-target_path = "s3a://datalake/test-output/"
+# 최종 데이터 경로: datalake/data/test/
+target_path = "s3a://datalake/data/test/"
 
 try:
-    print(f"Target Path: {target_path}")
     df.write.mode("overwrite").parquet(target_path)
-    print("Write Success!")
+    print("--- Write Success! ---")
     spark.read.parquet(target_path).show()
 except Exception as e:
-    print(f"Error occurred: {e}")
+    print(f"Error: {e}")
 
 spark.stop()
