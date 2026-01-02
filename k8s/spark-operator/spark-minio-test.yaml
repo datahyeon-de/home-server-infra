@@ -14,7 +14,7 @@ spec:
     "spark.hadoop.fs.s3a.path.style.access": "true"
     "spark.hadoop.fs.s3a.aws.credentials.provider": "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
     "spark.eventLog.enabled": "true"
-    "spark.eventLog.dir": "s3a://spark-logs"
+    "spark.eventLog.dir": "s3a://spark-logs/test-logs"
   driver:
     cores: 1
     memory: "512m"
