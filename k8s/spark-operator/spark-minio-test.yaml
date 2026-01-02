@@ -14,15 +14,16 @@ spec:
     type: Never
   sparkConf:
     # MinIO(S3A) 핵심 설정
+    "spark.hadoop.fs.s3a.aws.credentials.provider": "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
     "spark.hadoop.fs.s3a.endpoint": "http://192.168.0.14:9000"
-    "spark.hadoop.fs.s3a.access.key": "spark-user" # 또는 시크릿 참조 가능
-    "spark.hadoop.fs.s3a.secret.key": "spark-password-123"
     "spark.hadoop.fs.s3a.path.style.access": "true"
     "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
     "spark.hadoop.fs.s3a.endpoint.region": "ap-northeast-2"
-    "spark.hadoop.fs.s3a.change.detection.mode": "none"
-    "spark.hadoop.fs.s3a.aws.credentials.provider": "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
     "spark.hadoop.fs.s3a.connection.ssl.enabled": "false"
+    "spark.eventLog.enabled": "true"
+    "spark.eventLog.dir": "s3a://spark-logs/"
+    "spark.yarn.historyServer.address": "http://spark-history-server:18080"
+
   driver:
     cores: 1
     memory: "512m"
@@ -38,12 +39,12 @@ spec:
       - name: "test-script"
         mountPath: "/opt/spark/work-dir"
     env:
-      - name: ACCESS_KEY
+      - name: AWS_ACCESS_KEY_ID
         valueFrom:
           secretKeyRef:
             name: minio-s3-keys
             key: access-key
-      - name: SECRET_KEY
+      - name: AWS_SECRET_ACCESS_KEY
         valueFrom:
           secretKeyRef:
             name: minio-s3-keys
@@ -58,12 +59,12 @@ spec:
     instances: 1
     memory: "512m"
     env:
-      - name: ACCESS_KEY
+      - name: AWS_ACCESS_KEY_ID
         valueFrom:
           secretKeyRef:
             name: minio-s3-keys
             key: access-key
-      - name: SECRET_KEY
+      - name: AWS_SECRET_ACCESS_KEY
         valueFrom:
           secretKeyRef:
             name: minio-s3-keys

@@ -1,8 +1,8 @@
 from pyspark.sql import SparkSession
 import os
 
-access_key = os.getenv("ACCESS_KEY") # Secret의 키값과 맞춰야 함
-secret_key = os.getenv("SECRET_KEY")
+access_key = os.getenv("AWS_ACCESS_KEY_ID") # Secret의 키값과 맞춰야 함
+secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
 endpoint = os.getenv("S3_ENDPOINT", "http://192.168.0.14:9000")
 
 print(f"DEBUG: Access Key exists: {access_key is not None}")
