@@ -24,9 +24,9 @@
 | **신규** | 105 | `postgres-dw` | .15 | server-05 | 901 | Data Warehouse (VM) |
 | **신규** | 106 | `infra-prom-01` | .16 | server-06 | 901 | Host Prometheus (VM) |
 | **신규** | 300 | `k8s-master-01` | .30 | server-01 | 902 | Control Plane |
-| **신규** | 301 | `k8s-worker-01` | .31 | server-02 | 902 | Spark Worker 01 |
-| **신규** | 302 | `k8s-worker-02` | .32 | server-03 | 902 | Spark Worker 02 |
-| **신규** | 303 | `k8s-worker-03` | .33 | server-04 | 902 | Airflow/Services |
+| **신규** | 301 | `k8s-worker-01` | .31 | server-02 | 902 | Airflow/Services |
+| **신규** | 302 | `k8s-worker-02` | .32 | server-03 | 902 | Spark Worker 01 |
+| **신규** | 303 | `k8s-worker-03` | .33 | server-04 | 902 | Spark Worker 02 |
 | **신규** | 304 | `k8s-worker-04` | .34 | server-05 | 902 | CRM Data Gen Worker |
 | **신규** | 305 | `k8s-worker-05` | .35 | server-06 | 902 | K8s Monitor (Grafana) |
 
@@ -42,9 +42,9 @@
 | **Data Warehouse** | 105 | `postgres-dw` | 4 | 8 | 자원 상향 (Throttled) |
 | **Host Monitor** | 106 | `infra-prom-01` | 2 | 4 | 기본 사양 유지 |
 | **K8s Master** | 300 | `k8s-master-01` | 4 | 8 | 자원 상향 (Throttled) |
+| **Airflow/Service** | 301 | `k8s-worker-01` | 4 | 8 | 자원 상향 (Throttled) |
 | **Spark Worker 01** | 301 | `k8s-worker-01` | 6 | 12 | 최대 사양 할당 (Throttled) |
-| **Spark Worker 02** | 302 | `k8s-worker-02` | 6 | 12 | 최대 사양 할당 (Throttled) |
-| **Airflow/Service** | 303 | `k8s-worker-03` | 4 | 8 | 자원 상향 (Throttled) |
+| **Spark Worker 02** | 303 | `k8s-worker-03` | 6 | 12 | 최대 사양 할당 (Throttled) |
 | **Data Generator** | 304 | `data-gen-worker` | 2 | 4 | 기본 사양 유지 |
 | **K8s Monitor** | 305 | `k8s-monitor-01` | 4 | 8 | 자원 상향 (Throttled) |
 
