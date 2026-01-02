@@ -12,6 +12,7 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.endpoint", endpoint) \
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
     .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+    .config("spark.hadoop.fs.s3a.metadatastore.impl", "org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore") \
     .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
     .config("spark.hadoop.fs.s3a.signing-algorithm", "S3SignerType") \
     .getOrCreate()
