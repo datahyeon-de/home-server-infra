@@ -13,14 +13,21 @@ spec:
   restartPolicy:
     type: Never
   sparkConf:
-    # MinIO(S3A) 핵심 설정
+    # 1. S3Guard 기능을 완전히 뿌리뽑는 강제 설정 (핵심)
     "spark.hadoop.fs.s3a.metadatastore.impl": "org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore"
+    "spark.hadoop.fs.s3a.s3guard.index.enabled": "false"
+
+    # 2. 인증 방식 강제 지정 (환경 변수 우선)
     "spark.hadoop.fs.s3a.aws.credentials.provider": "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
-    "spark.hadoop.fs.s3a.endpoint": "http://192.168.0.14:9000"
+    
+    # 3. 경로 해석 방식 보정
     "spark.hadoop.fs.s3a.path.style.access": "true"
     "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
+    "spark.hadoop.fs.s3a.endpoint": "http://192.168.0.14:9000"
     "spark.hadoop.fs.s3a.endpoint.region": "ap-northeast-2"
     "spark.hadoop.fs.s3a.connection.ssl.enabled": "false"
+
+    # 4. 이벤트 로그 설정 (경로 끝에 슬래시 제외)
     "spark.eventLog.enabled": "true"
     "spark.eventLog.dir": "s3a://spark-logs"
     "spark.yarn.historyServer.address": "http://spark-history-server:18080"
