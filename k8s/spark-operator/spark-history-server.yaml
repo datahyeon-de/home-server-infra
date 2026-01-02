@@ -48,3 +48,11 @@ spec:
           valueFrom: { secretKeyRef: { name: minio-s3-keys, key: secret-key } }
         ports:
         - containerPort: 18080
+        volumeMounts:
+        - name: hadoop-config
+          mountPath: /opt/spark/conf/core-site.xml
+          subPath: core-site.xml
+      volumes:
+      - name: hadoop-config
+        configMap:
+          name: hadoop-config
