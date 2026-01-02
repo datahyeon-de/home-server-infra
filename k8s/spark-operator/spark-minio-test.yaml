@@ -2,6 +2,7 @@ apiVersion: "sparkoperator.k8s.io/v1beta2"
 kind: SparkApplication
 metadata:
   name: spark-minio-test
+  namespace: default
 spec:
   type: Python
   mode: cluster
@@ -13,15 +14,14 @@ spec:
     "spark.hadoop.fs.s3a.endpoint": "http://192.168.0.14:9000"
     "spark.hadoop.fs.s3a.path.style.access": "true"
     "spark.hadoop.fs.s3a.aws.credentials.provider": "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
-    "spark.hadoop.fs.s3a.metadatastore.impl": "org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore"
-    "spark.hadoop.fs.s3a.endpoint.region": "us-east-1"
-    "spark.hadoop.fs.s3a.signing-algorithm": "S3SignerType"
     "spark.eventLog.enabled": "true"
-    "spark.eventLog.dir": "s3a://spark-logs/"
+    "spark.eventLog.dir": "s3a://spark-logs/test-logs/" # 하위 폴더 필수
   driver:
     cores: 1
     memory: "512m"
     serviceAccount: spark-sa
+    # JVM 레벨에서 S3Guard를 확실히 끄기 위해 주입
+    extraJavaOptions: "-Dspark.hadoop.fs.s3a.metadatastore.impl=org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore -Dspark.hadoop.fs.s3a.endpoint.region=us-east-1"
     env:
       - name: AWS_ACCESS_KEY_ID
         valueFrom: { secretKeyRef: { name: minio-s3-keys, key: access-key } }
@@ -36,6 +36,7 @@ spec:
     cores: 1
     instances: 1
     memory: "512m"
+    extraJavaOptions: "-Dspark.hadoop.fs.s3a.metadatastore.impl=org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore -Dspark.hadoop.fs.s3a.endpoint.region=us-east-1"
     env:
       - name: AWS_ACCESS_KEY_ID
         valueFrom: { secretKeyRef: { name: minio-s3-keys, key: access-key } }
