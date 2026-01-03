@@ -40,3 +40,13 @@ dags:
     branch: "main"
     subPath: "dags"
     wait: 30
+
+triggerer:
+  persistence:
+    enabled: false
+  nodeSelector:
+    workload-type: orchestration
+
+workers:
+  persistence:
+    enabled: false
