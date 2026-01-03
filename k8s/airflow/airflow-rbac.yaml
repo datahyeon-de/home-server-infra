@@ -44,7 +44,7 @@ metadata:
 rules:
   # 1. SparkApplication(CRD) 제어 권한 (기존 내용)
   - apiGroups: ["sparkoperator.k8s.io"]
-    resources: ["sparkapplications"]
+    resources: ["sparkapplications", "sparkapplications/status"]
     verbs: ["get", "list", "watch", "create", "patch", "update", "delete"]
   
   # 2. [추가] 실제 실행되는 Spark Pod(Driver/Executor)를 조회/감시할 권한
