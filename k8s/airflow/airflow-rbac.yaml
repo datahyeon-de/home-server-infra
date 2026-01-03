@@ -50,7 +50,7 @@ rules:
   # 2. [추가] 실제 실행되는 Spark Pod(Driver/Executor)를 조회/감시할 권한
   - apiGroups: [""]
     resources: ["pods", "pods/log"]  # pods 권한이 있어야 에러가 안 납니다.
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "patch"]
 ---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
