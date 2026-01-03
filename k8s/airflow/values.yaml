@@ -25,7 +25,7 @@ postgresql:
 config:
   logging:
     remote_logging: 'True'
-    remote_base_log_folder: 's3a://datalake/logs/airflow-logs/'
+    remote_base_log_folder: 's3://datalake/logs/airflow-logs/'
     remote_log_conn_id: 'minio_s3_conn'
   # 보안을 위해 API 인증 활성화
   api:
