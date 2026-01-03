@@ -23,6 +23,7 @@ postgresql:
 
 rbac:
   create: false
+
 serviceAccount:
   create: false
   name: "airflow-sa"
@@ -41,12 +42,24 @@ dags:
     subPath: "dags"
     wait: 30
 
+scheduler:
+  serviceAccount:
+    name: "airflow-sa"
+
+webserver:
+  serviceAccount:
+    name: "airflow-sa"
+
 triggerer:
   persistence:
     enabled: false
   nodeSelector:
     workload-type: orchestration
+  serviceAccount:
+    name: "airflow-sa"
 
 workers:
   persistence:
     enabled: false
+  serviceAccount:
+    name: "airflow-sa"
