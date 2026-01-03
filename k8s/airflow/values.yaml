@@ -1,5 +1,3 @@
-# values.yaml 수정본
-
 executor: "KubernetesExecutor"
 
 images:
@@ -12,50 +10,33 @@ nodeSelector:
 
 postgresql:
   enabled: true
-  # [추가] DB 파드도 orchestration 노드에 뜨도록 명시
+  image:
+    repository: bitnamilegacy/postgresql
+    tag: "16.1.0-debian-11-r15"
   primary:
     nodeSelector:
       workload-type: orchestration
     persistence:
       enabled: true
-      existingClaim: "airflow-pg-pvc" # 우리가 만든 PVC
+      existingClaim: "airflow-pg-pvc"
       storageClassName: "manual"
+
+rbac:
+  create: false
+serviceAccount:
+  create: false
+  name: "airflow-sa"
+
+config:
   logging:
     remote_logging: 'True'
-    # [수정] s3a:// -> s3:// (Airflow 표준 형식)
     remote_base_log_folder: 's3://datalake/logs/airflow-logs/'
     remote_log_conn_id: 'minio_s3_conn'
-  api:
-    auth_backends: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
 
 dags:
   gitSync:
     enabled: true
     repo: "https://github.com/datahyeon-de/data-platform-core.git"
     branch: "main"
-    rev: "HEAD"
-    subPath: "dags" # 레포 내 dags 폴더 지정
+    subPath: "dags"
     wait: 60
-
-scheduler:
-  replicas: 1
-  resources:
-    requests:
-      cpu: "500m"
-      memory: "768Mi" # 8GiB 노드를 고려해 약간 하향
-    limits:
-      cpu: "1000m"
-      memory: "1Gi"
-
-webserver:
-  replicas: 1
-  resources:
-    requests:
-      cpu: "500m"
-      memory: "768Mi"
-    limits:
-      cpu: "1000m"
-      memory: "1Gi"
-
-rbac:
-  create: false # 우리가 만든 airflow-sa를 사용하므로 false

@@ -1,22 +1,23 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: airflow
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: airflow-sa
   namespace: airflow
 ---
+# [권한 1] Airflow 내부 관리용 (airflow 네임스페이스)
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: airflow-role
   namespace: airflow
 rules:
-  # 1. KubernetesExecutor가 파드를 관리하기 위한 권한
   - apiGroups: [""]
     resources: ["pods", "pods/log", "pods/exec", "configmaps", "secrets"]
-    verbs: ["get", "list", "watch", "create", "patch", "update", "delete"]
-  # 2. Spark Operator(CRD)를 제어하기 위한 권한
-  - apiGroups: ["sparkoperator.k8s.io"]
-    resources: ["sparkapplications"]
     verbs: ["get", "list", "watch", "create", "patch", "update", "delete"]
 ---
 kind: RoleBinding
@@ -31,4 +32,29 @@ subjects:
 roleRef:
   kind: Role
   name: airflow-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# [권한 2] Spark 제어용 (spark 네임스페이스로 크로스 권한 부여)
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: airflow-spark-manager-role
+  namespace: spark
+rules:
+  - apiGroups: ["sparkoperator.k8s.io"]
+    resources: ["sparkapplications"]
+    verbs: ["get", "list", "watch", "create", "patch", "update", "delete"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: airflow-spark-cross-binding
+  namespace: spark
+subjects:
+  - kind: ServiceAccount
+    name: airflow-sa
+    namespace: airflow
+roleRef:
+  kind: Role
+  name: airflow-spark-manager-role
   apiGroup: rbac.authorization.k8s.io
