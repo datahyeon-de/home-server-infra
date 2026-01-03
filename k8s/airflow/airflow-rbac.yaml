@@ -34,16 +34,23 @@ roleRef:
   name: airflow-role
   apiGroup: rbac.authorization.k8s.io
 ---
+---
 # [권한 2] Spark 제어용 (spark 네임스페이스로 크로스 권한 부여)
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: airflow-spark-manager-role
-  namespace: spark
+  namespace: spark  # 중요: spark 방에 대한 권한입니다.
 rules:
+  # 1. SparkApplication(CRD) 제어 권한 (기존 내용)
   - apiGroups: ["sparkoperator.k8s.io"]
     resources: ["sparkapplications"]
     verbs: ["get", "list", "watch", "create", "patch", "update", "delete"]
+  
+  # 2. [추가] 실제 실행되는 Spark Pod(Driver/Executor)를 조회/감시할 권한
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]  # pods 권한이 있어야 에러가 안 납니다.
+    verbs: ["get", "list", "watch"]
 ---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
