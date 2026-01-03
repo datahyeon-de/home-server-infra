@@ -1,5 +1,8 @@
 webhook:
   enable: true
 
+controller:
+  watchAnyNamespace: true
+
 nodeSelector:
-  workload-type: spark-executor
+  workload-type: orchestration

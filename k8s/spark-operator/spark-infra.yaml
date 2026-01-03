@@ -1,3 +1,4 @@
+# 1. Namespace & ServiceAccount
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -9,26 +10,41 @@ metadata:
   name: spark-sa
   namespace: spark
 ---
+# 2. RBAC: Spark 파드들이 통신에 필요한 최소 권한
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: spark-role
+  name: spark-job-role
   namespace: spark
 rules:
-- apiGroups: [""]
-  resources: ["pods", "services", "configmaps", "persistentvolumeclaims"]
-  verbs: ["get", "list", "watch", "create", "delete", "deletecollection", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps"]
+    verbs: ["*"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: spark-role-binding
+  name: spark-job-role-binding
   namespace: spark
 subjects:
-- kind: ServiceAccount
-  name: spark-sa
-  namespace: spark
+  - kind: ServiceAccount
+    name: spark-sa
+    namespace: spark
 roleRef:
   kind: Role
-  name: spark-role
+  name: spark-job-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# 3. [중요] Spark Operator에게 전체 클러스터 관리 권한 부여
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spark-operator-master-admin
+subjects:
+  - kind: ServiceAccount
+    name: my-spark-operator-controller
+    namespace: spark-operator
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin 
   apiGroup: rbac.authorization.k8s.io
