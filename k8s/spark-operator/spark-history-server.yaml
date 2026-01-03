@@ -55,9 +55,8 @@ kind: Ingress
 metadata:
   name: spark-history-ingress
   namespace: spark
-  annotations:
-    kubernetes.io/ingress.class: nginx
 spec:
+  ingressClassName: nginx
   rules:
   - host: spark-history.local
     http:

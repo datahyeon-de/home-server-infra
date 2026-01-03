@@ -3,6 +3,7 @@ webhook:
 
 controller:
   watchAnyNamespace: true
+  watchNamespaces: "" 
 
 nodeSelector:
   workload-type: orchestration
