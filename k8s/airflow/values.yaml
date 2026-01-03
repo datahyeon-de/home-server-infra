@@ -39,4 +39,4 @@ dags:
     repo: "https://github.com/datahyeon-de/data-platform-core.git"
     branch: "main"
     subPath: "dags"
-    wait: 60
+    wait: 30
