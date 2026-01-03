@@ -1,67 +1,62 @@
-# values.yaml
+# values.yaml 수정본
 
-# 1. 실행 엔진 설정 (작업 시에만 파드 생성)
 executor: "KubernetesExecutor"
 
-# 2. 에어플로우 이미지 설정 (최신 안정화 버전)
 images:
   airflow:
     repository: apache/airflow
     tag: 2.10.4-python3.12
 
-# 3. 모든 구성 요소를 k8s-worker-01 노드로 고정
 nodeSelector:
   workload-type: orchestration
 
-# 4. 데이터베이스 설정 (우리가 만든 PVC 연결)
 postgresql:
   enabled: true
+  # [추가] DB 파드도 orchestration 노드에 뜨도록 명시
+  nodeSelector:
+    workload-type: orchestration
   persistence:
     enabled: true
-    existingClaim: "airflow-pg-pvc" # 우리가 생성한 PVC 이름
+    existingClaim: "airflow-pg-pvc"
     storageClassName: "manual"
 
-# 5. 로깅 설정 (MinIO S3 연동)
 config:
   logging:
     remote_logging: 'True'
+    # [수정] s3a:// -> s3:// (Airflow 표준 형식)
     remote_base_log_folder: 's3://datalake/logs/airflow-logs/'
     remote_log_conn_id: 'minio_s3_conn'
-  # 보안을 위해 API 인증 활성화
   api:
     auth_backends: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
 
-# 6. Git-Sync 설정 (GitHub에서 DAG 가져오기)
 dags:
   gitSync:
     enabled: true
     repo: "https://github.com/datahyeon-de/data-platform-core.git"
     branch: "main"
     rev: "HEAD"
+    subPath: "dags" # 레포 내 dags 폴더 지정
     wait: 60
-    # 공용 레포가 아니라면 sshKeySecret 등을 추가해야 합니다.
 
-# 7. 리소스 최적화 (8GiB 노드에 맞게 제한)
 scheduler:
   replicas: 1
   resources:
     requests:
       cpu: "500m"
-      memory: "1Gi"
+      memory: "768Mi" # 8GiB 노드를 고려해 약간 하향
     limits:
       cpu: "1000m"
-      memory: "2Gi"
+      memory: "1Gi"
 
 webserver:
   replicas: 1
   resources:
     requests:
       cpu: "500m"
-      memory: "1Gi"
+      memory: "768Mi"
     limits:
       cpu: "1000m"
-      memory: "2Gi"
+      memory: "1Gi"
 
-# 8. RBAC 설정 (Airflow가 워커 파드를 띄울 수 있게 허용)
 rbac:
-  create: true
+  create: false # 우리가 만든 airflow-sa를 사용하므로 false
