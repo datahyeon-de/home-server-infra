@@ -1,9 +1,21 @@
+controller:
+
+  # 기존 계층 구조 유지
+  uiService:
+    enable: true
+  uiIngress:
+    enable: true
+    ingressClassName: "nginx"
+    urlFormat: "spark-ui.local/spark-ui/{{$appNamespace}}/{{$appName}}"
+    annotations:
+      nginx.ingress.kubernetes.io/use-regex: "true"
+      nginx.ingress.kubernetes.io/rewrite-target: "/$2"
+
+  nodeSelector:
+    workload-type: orchestration
+
+spark:
+  jobNamespaces: []
+
 webhook:
   enable: true
-
-controller:
-  watchAnyNamespace: true
-  watchNamespaces: "" 
-
-nodeSelector:
-  workload-type: orchestration
