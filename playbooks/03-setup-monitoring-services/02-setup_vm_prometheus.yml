@@ -1,0 +1,110 @@
+---
+- name: "Prometheus A (16번 VM) 설치 및 전체 인프라 연동"
+  hosts: infra-prom-01 # inventory/hosts.ini에 등록된 이름
+  become: yes
+  vars:
+    prometheus_version: "3.0.1"
+    bastion_dl_path: "/home/ubuntu/downloads"
+
+  tasks:
+    # 1. 계정 및 디렉토리 준비
+    - name: "prometheus 계정 및 데이터 폴더 준비"
+      block:
+        - group: { name: prometheus, system: yes }
+        - user: { name: prometheus, group: prometheus, system: yes, shell: /sbin/nologin, create_home: no }
+        - file:
+            path: "{{ item }}"
+            state: directory
+            owner: prometheus
+            group: prometheus
+            mode: '0755'
+          loop: [ '/etc/prometheus', '/var/lib/prometheus' ]
+
+    # 2. 바이너리 전송 및 설치 (Bastion -> VM 16)
+    - name: "Prometheus 바이너리 전송 및 압축 해제"
+      unarchive:
+        src: "{{ bastion_dl_path }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+        dest: /tmp/
+        remote_src: no
+
+    - name: "실행 파일 및 라이브러리 이동"
+      block:
+        - copy:
+            src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+            dest: "/usr/local/bin/{{ item }}"
+            mode: '0755'
+            owner: prometheus
+            group: prometheus
+            remote_src: yes
+          loop: [ 'prometheus', 'promtool' ]
+        - copy:
+            src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+            dest: "/etc/prometheus/"
+            owner: prometheus
+            group: prometheus
+            remote_src: yes
+          loop: [ 'consoles', 'console_libraries' ]
+
+    # 3. [핵심] 6대 호스트 및 전체 VM을 포함한 설정 파일 생성
+    - name: "prometheus.yml 설정 파일 생성"
+      copy:
+        dest: /etc/prometheus/prometheus.yml
+        owner: prometheus
+        group: prometheus
+        mode: '0644'
+        content: |
+          global:
+            scrape_interval: 15s
+            evaluation_interval: 15s
+
+          scrape_configs:
+            # A. 물리 호스트 서버 (101~106)
+            - job_name: 'proxmox-nodes'
+              static_configs:
+                - targets: ['192.168.0.101:9100', '192.168.0.102:9100', '192.168.0.103:9100', 
+                            '192.168.0.104:9100', '192.168.0.105:9100', '192.168.0.106:9100']
+
+            # B. 카프카 서버 (11~13)
+            - job_name: 'kafka-nodes'
+              static_configs:
+                - targets: ['192.168.0.11:9100', '192.168.0.12:9100', '192.168.0.13:9100']
+
+            # C. 기타 VM 서버 및 K8s 노드
+            - job_name: 'vm-nodes'
+              static_configs:
+                - targets: ['192.168.0.10:9100', '192.168.0.14:9100', '192.168.0.15:9100', 192.168.0.16:9100
+                            '192.168.0.30:9100', '192.168.0.31:9100', '192.168.0.32:9100', 
+                            '192.168.0.33:9100', '192.168.0.34:9100', '192.168.0.35:9100']
+
+            # D. 모든 노드 프로세스 상세 감시
+            - job_name: 'process-exporter'
+              static_configs:
+                - targets: ['192.168.0.101:9256', '192.168.0.102:9256', '192.168.0.103:9256', 
+                            '192.168.0.104:9256', '192.168.0.105:9256', '192.168.0.106:9256',
+                            '192.168.0.10:9256', '192.168.0.11:9256', '192.168.0.12:9256',
+                            '192.168.0.13:9256', '192.168.0.14:9256', '192.168.0.15:9256', '192.168.0.16:9256',
+                            '192.168.0.30:9256', '192.168.0.31:9256', '192.168.0.32:9256',
+                            '192.168.0.33:9256', '192.168.0.34:9256', '192.168.0.35:9256']
+
+    # 4. systemd 서비스 등록 및 실행
+    - name: "prometheus 서비스 유닛 파일 생성"
+      copy:
+        dest: /etc/systemd/system/prometheus.service
+        content: |
+          [Unit]
+          Description=Prometheus Server
+          After=network.target
+          [Service]
+          User=prometheus
+          Group=prometheus
+          ExecStart=/usr/local/bin/prometheus \
+            --config.file /etc/prometheus/prometheus.yml \
+            --storage.tsdb.path /var/lib/prometheus/ \
+            --web.console.templates=/etc/prometheus/consoles \
+            --web.console.libraries=/etc/prometheus/console_libraries
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: "서비스 가동"
+      systemd: { daemon_reload: yes, name: prometheus, state: restarted, enabled: yes }
