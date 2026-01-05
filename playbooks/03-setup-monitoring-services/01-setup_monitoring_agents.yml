@@ -1,0 +1,132 @@
+---
+- name: "인프라 전체(Host & VM) 모니터링 에이전트 통합 설치"
+  hosts: all
+  become: yes
+  vars:
+    node_exporter_v: "1.10.2"
+    process_exporter_v: "0.8.7"
+    bastion_dl_path: "/home/ubuntu/downloads" # Bastion 서버 내 파일 위치
+
+  tasks:
+    # 1. [Host 전용] lm-sensors 설치 및 설정
+    - name: "물리 호스트(Proxmox) 전용: 온도 센서 설정"
+      when: inventory_hostname in groups['proxmox_nodes']
+      block:
+        - name: "lm-sensors 패키지 설치"
+          apt: { name: lm-sensors, state: present, update_cache: yes }
+
+        - name: "센서 탐지 및 모듈 등록"
+          shell: "yes '' | sensors-detect"
+          register: sensors_detect_res
+          changed_when: "'No sensors were detected' not in sensors_detect_res.stdout"
+
+        - name: "커널 모듈 재로드 (재부팅 없이 적용)"
+          service: { name: kmod, state: restarted }
+
+    # 2. [공통] 계정 및 디렉토리 준비
+    - name: "prometheus 시스템 계정 및 폴더 준비"
+      block:
+        - name: "prometheus 그룹 생성"
+          group: { name: prometheus, system: yes }
+
+        - name: "prometheus 사용자 생성"
+          user: { name: prometheus, group: prometheus, system: yes, shell: /sbin/nologin, create_home: no }
+
+        - name: "설정 디렉토리 생성"
+          file:
+            path: "{{ item }}"
+            state: directory
+            owner: prometheus
+            group: prometheus
+            mode: '0755'
+          loop: [ '/etc/node_exporter', '/etc/process-exporter' ]
+
+    # 3. [공통] 바이너리 배포 및 압축 해제
+    - name: "Bastion에서 바이너리 전송 및 해제"
+      block:
+        - name: "Node Exporter 전송"
+          unarchive:
+            src: "{{ bastion_dl_path }}/node_exporter-{{ node_exporter_v }}.linux-amd64.tar.gz"
+            dest: /tmp/
+            remote_src: no # Bastion에서 Target으로 전송함을 의미
+
+        - name: "Process Exporter 전송"
+          unarchive:
+            src: "{{ bastion_dl_path }}/process-exporter-{{ process_exporter_v }}.linux-amd64.tar.gz"
+            dest: /tmp/
+            remote_src: no
+
+    # 4. [공통] 실행 파일 배치
+    - name: "바이너리 실행 파일 이동 및 권한 설정"
+      block:
+        - name: "node_exporter 이동"
+          copy:
+            src: "/tmp/node_exporter-{{ node_exporter_v | trim }}.linux-amd64/node_exporter"
+            dest: /usr/local/bin/node_exporter
+            mode: '0755'
+            owner: prometheus
+            group: prometheus
+            remote_src: yes # 이미 Target의 /tmp에 있으므로 yes
+
+        - name: "process-exporter 이동"
+          copy:
+            src: "/tmp/process-exporter-{{ process_exporter_v | trim }}.linux-amd64/process-exporter"
+            dest: /usr/local/bin/process-exporter
+            mode: '0755'
+            owner: prometheus
+            group: prometheus
+            remote_src: yes
+
+    # 5. [공통] 설정 파일 및 서비스 유닛 등록
+    - name: "서비스 유닛 및 설정 파일 생성"
+      block:
+        - name: "Process Exporter 설정 작성"
+          copy:
+            dest: /etc/process-exporter/config.yml
+            content: |
+              process_names:
+                - name: "{% raw %}{{.Comm}}{% endraw %}"
+                  cmdline: ['.+']
+            owner: prometheus
+            group: prometheus
+
+        - name: "Node Exporter 서비스 등록"
+          copy:
+            dest: /etc/systemd/system/node_exporter.service
+            content: |
+              [Unit]
+              Description=Node Exporter
+              After=network.target
+              [Service]
+              User=prometheus
+              Group=prometheus
+              Type=simple
+              ExecStart=/usr/local/bin/node_exporter --collector.hwmon --collector.processes
+              Restart=always
+              [Install]
+              WantedBy=multi-user.target
+
+        - name: "Process Exporter 서비스 등록"
+          copy:
+            dest: /etc/systemd/system/process_exporter.service
+            content: |
+              [Unit]
+              Description=Process Exporter
+              After=network.target
+              [Service]
+              User=prometheus
+              Group=prometheus
+              Type=simple
+              ExecStart=/usr/local/bin/process-exporter --config.path /etc/process-exporter/config.yml
+              Restart=always
+              [Install]
+              WantedBy=multi-user.target
+
+    # 6. [공통] 서비스 가동
+    - name: "에이전트 서비스 시작 및 상주 활성화"
+      systemd:
+        daemon_reload: yes
+        name: "{{ item }}"
+        state: restarted
+        enabled: yes
+      loop: [ 'node_exporter', 'process_exporter' ]
