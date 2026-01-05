@@ -7,14 +7,13 @@ prometheus:
     
     # 데이터 저장 설정
     storageSpec:
-      v1:
-        persistentVolumeClaim:
-          spec:
-            storageClassName: manual
-            accessModes: ["ReadWriteOnce"]
-            resources:
-              requests:
-                storage: 256Gi
+      volumeClaimTemplate:
+        spec:
+          storageClassName: manual
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 256Gi
 
 # 2. Grafana 설정
 grafana:
