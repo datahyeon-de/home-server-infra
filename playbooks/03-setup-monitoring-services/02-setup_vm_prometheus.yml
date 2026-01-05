@@ -37,13 +37,6 @@
             group: prometheus
             remote_src: yes
           loop: [ 'prometheus', 'promtool' ]
-        - copy:
-            src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
-            dest: "/etc/prometheus/"
-            owner: prometheus
-            group: prometheus
-            remote_src: yes
-          loop: [ 'consoles', 'console_libraries' ]
 
     # 3. [핵심] 6대 호스트 및 전체 VM을 포함한 설정 파일 생성
     - name: "prometheus.yml 설정 파일 생성"
