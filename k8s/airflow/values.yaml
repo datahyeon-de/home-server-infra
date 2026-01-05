@@ -40,7 +40,7 @@ dags:
     repo: "https://github.com/datahyeon-de/data-platform-core.git"
     branch: "main"
     subPath: "dags"
-    wait: 30
+    wait: 600
 
 scheduler:
   serviceAccount:

@@ -11,15 +11,17 @@
 - **Host Servers (Proxmox)**: 192.168.0.101 ~ 106 (계정: `datahyeon`)
 - **VM Servers**: 
   - Bastion: 192.168.0.100
-  - Kafka: 192.168.0.11 ~ 13 (전용 SSH 키 사용)
-  - Prometheus A: 192.168.0.16
-  - K8s Cluster: 192.168.0.30 ~ 35
+  - Kafka: 192.168.0.11 ~ 13 (전용 SSH 키 `kafka-ssh` 사용)
+  - Prometheus A: 192.168.0.16 (CentOS/Ubuntu VM)
+  - K8s Cluster: 192.168.0.30 ~ 35 (Master 1, Worker 5)
   - 기타: MinIO(14), Postgres(15)
 
 ## 3. 주요 작업 내용 및 자동화 (Ansible)
 
-### 3.1 에이전트(Exporter) 통합 설치
-- **Node Exporter (v1.10.2)**: OS 기본 매트릭 수집. 물리 호스트는 `--collector.hwmon` 옵션을 통해 온도 수집 활성화.
+### 3.1 에이전트(Exporter) 통합 설치 및 전략 변경
+- **Node Exporter (v1.10.2)**: 
+  - 모든 서버에 배포. 물리 호스트(101~106)는 `--collector.hwmon` 옵션을 통해 AMD 라이젠 CPU 온도 수집 활성화.
+  - **[중요 결정]**: 초기에는 K8s 노드(30~35)도 VM 16번 Prometheus에서 수집하도록 설정했으나, 이후 K8s 내부 헬름 차트(Prometheus B)와의 포트(9100) 충돌 및 데이터 중복을 방지하기 위해 **K8s 노드들의 수동 node_exporter 서비스를 중단하고 VM 16번 수집 대상에서 제외함.**
 - **Process Exporter (v0.8.7)**: `config.yml` 설정을 통해 모든 프로세스(`{{.Comm}}`)의 개별 자원 점유율 수집.
 - **lm-sensors**: 물리 호스트의 하드웨어 온도 감지를 위해 설치 및 `sensors-detect` 자동화.
 - **Ansible 특이사항**: 
@@ -27,33 +29,29 @@
 
 ### 3.2 Prometheus A (VM 16) 서버 구축
 - **버전**: Prometheus v3.0.1 (최신 메이저 버전)
-- **설정**: 
+- **설정 (`prometheus.yml`)**: 
   - `proxmox-nodes`: 101~106 노드의 9100 포트 수집.
-  - `vm-nodes`: K8s 및 일반 VM의 9100 포트 수집.
-  - `process-stats`: 전 서버의 9256 포트 수집.
-- **운영**: `systemd`를 통한 서비스 상주화 및 `/var/lib/prometheus` 데이터 영구 저장소 구성.
+  - `kafka-nodes`: 11~13 노드 수집.
+  - `vm-nodes`: K8s를 제외한 일반 VM(10, 14, 15, 16)의 9100 포트 수집 (K8s 노드는 헬름 차트로 이관).
+  - `process-stats`: 물리 서버 및 전체 VM의 9256 포트 수집.
 
 ## 4. [트러블슈팅 기록] 시행착오와 해결
 
 ### 4.1 Prometheus v3.0 변경점 대응
-- **문제**: 플레이북 실행 중 `consoles` 폴더 복사 실패.
-- **원인**: v3.0부터 레거시 콘솔 템플릿이 삭제됨.
-- **해결**: 플레이북에서 관련 복사 태스크 및 서비스 실행 플래그 제거.
+- **문제**: 플레이북 실행 중 `consoles` 및 `console_libraries` 폴더 복사 실패.
+- **원인**: v3.0부터 해당 레거시 폴더들이 기본 바이너리에서 삭제됨.
+- **해결**: Ansible 플레이북에서 관련 복사 태스크를 제거하여 설치 완료.
 
 ### 4.2 Systemd 문법 오류 (Backslash)
 - **문제**: 서비스 실행 시 `Error parsing command line arguments: unexpected Restart=always`.
-- **원인**: `ExecStart` 명령어 끝에 백슬래시(`\`)가 중복되어 `Restart=always` 지시어를 실행 인자로 오인함.
-- **해결**: 마지막 인자 줄의 백슬래시를 제거하여 명령어와 지시어를 명확히 분리.
+- **원인**: `ExecStart` 명령어의 마지막 인자 줄 끝에 백슬래시(`\`)가 포함되어 다음 줄인 `Restart=always`를 실행 옵션으로 인식함.
+- **해결**: 명령어 마지막 줄의 백슬래시를 제거하여 `Restart` 지시어와 분리.
 
 ### 4.3 YAML 문법 오류 (Quoting)
 - **문제**: `too many colons in address` 에러 발생.
-- **원인**: `targets` 리스트 중 `192.168.0.16:9100`에만 싱글 따옴표(`'`)가 누락되어 콜론(`:`)이 특수 문자로 해석됨.
-- **해결**: 모든 타겟 주소를 따옴표로 감싸 문자열로 명시하여 해결.
+- **원인**: `targets` 리스트 중 `192.168.0.16:9100` 주소에 싱글 따옴표(`'`)가 누락되어 YAML 파서가 콜론을 특수 문자로 오인함.
+- **해결**: 모든 주소값을 따옴표로 감싸 명시적 문자열로 처리.
 
 ## 5. 검증 및 확인
-- **터널링**: 로컬 PC에서 `ssh -L 9090:192.168.0.16:9090`을 통해 접속 환경 구축.
-- **데이터 확인**: `Status -> Targets`에서 19개 엔드포인트 모두 **UP** 상태 확인 완료.
-- **온도 데이터**: `node_hwmon_temp_celsius` 매트릭을 통해 AMD 라이젠 호스트의 온도 수집 정상 확인.
-
-## 6. 향후 계획
-- **Issue #3-12**: K8s 내부 Grafana 설치 및 Prometheus A(VM 16) + Prometheus B(K8s 내부) 통합 대시보드 구축.
+- **터널링**: 로컬 PC에서 `ssh -L 9090:192.168.0.16:9090`을 통해 Prometheus UI 접속 환경 구축.
+- **데이터 확인**: `Status -> Targets`에서 16번 VM이 수집하는 물리 서버 및 기타 VM 타겟들이 **UP** 상태임을 확인.
