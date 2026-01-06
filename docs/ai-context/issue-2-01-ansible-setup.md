@@ -19,5 +19,5 @@
 3. **보안**: 모든 Ansible 명령은 `vm-bastion`(Tailscale VPN)에서 수행하며 SSH Key 주입 자동화.
 
 ## 🔗 다음 작업
-- [ ] `vars/vm_list.yml` 정의 (12대 VM 리스트 확정)
-- [ ] `provision_ubuntu.yml` (901 기반) 플레이북 작성
+- [x] `vars/vm_list.yml` 정의 (12대 VM 리스트 확정)
+- [x] `provision_ubuntu.yml` (901 기반) 플레이북 작성

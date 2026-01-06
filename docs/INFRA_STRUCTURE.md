@@ -43,7 +43,7 @@
 | **Host Monitor** | 106 | `infra-prom-01` | 2 | 4 | 기본 사양 유지 |
 | **K8s Master** | 300 | `k8s-master-01` | 4 | 8 | 자원 상향 (Throttled) |
 | **Airflow/Service** | 301 | `k8s-worker-01` | 4 | 8 | 자원 상향 (Throttled) |
-| **Spark Worker 01** | 301 | `k8s-worker-01` | 6 | 12 | 최대 사양 할당 (Throttled) |
+| **Spark Worker 01** | 301 | `k8s-worker-02` | 6 | 12 | 최대 사양 할당 (Throttled) |
 | **Spark Worker 02** | 303 | `k8s-worker-03` | 6 | 12 | 최대 사양 할당 (Throttled) |
 | **Data Generator** | 304 | `data-gen-worker` | 2 | 4 | 기본 사양 유지 |
 | **K8s Monitor** | 305 | `k8s-monitor-01` | 4 | 8 | 자원 상향 (Throttled) |
