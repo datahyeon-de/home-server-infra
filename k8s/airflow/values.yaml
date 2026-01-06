@@ -63,3 +63,12 @@ workers:
     enabled: false
   serviceAccount:
     name: "airflow-sa"
+
+ingress:
+  web:
+    enabled: true
+    ingressClassName: "nginx"
+    path: "/"
+    pathType: "ImplementationSpecific"
+    hosts:
+      - name: "airflow.local"

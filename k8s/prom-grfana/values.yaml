@@ -1,11 +1,8 @@
 # 1. Prometheus 설정
 prometheus:
   prometheusSpec:
-    # 워커 05번으로 배치
     nodeSelector:
       workload-type: monitoring
-    
-    # 데이터 저장 설정
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -14,14 +11,22 @@ prometheus:
           resources:
             requests:
               storage: 256Gi
-
+              
+  ingress:
+    enabled: true
+    ingressClassName: "nginx"
+    hosts:
+      - "prometheus-b.local"
+    paths:
+      - "/"
+    pathType: "ImplementationSpecific"
+      
 # 2. Grafana 설정
 grafana:
   enabled: true
   nodeSelector:
     workload-type: monitoring
   
-  # 인그레스 설정 (grafana.local:30998 접속용)
   ingress:
     enabled: true
     ingressClassName: nginx
@@ -37,11 +42,8 @@ grafana:
       access: proxy
       editable: true
 
-# 3. Node Exporter 설정 (포트 충돌 방지)
-# 헬름이 관리하는 Node Exporter는 HostNetwork를 사용하므로 9100 포트를 점유합니다.
 nodeExporter:
   enabled: true
 
-# 4. 기타 불필요한 서비스 (필요시 비활성화)
 alertmanager:
-  enabled: false # 일단 알림 기능은 끄고 가시성을 먼저 확보
+  enabled: false
